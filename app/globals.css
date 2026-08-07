@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Fraunces", var(--font-display-fallback), serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #fbf7ef;
+  color: #14151a;
+}
+
+/* Signature element: a torn-perforation edge, like tearing a stub off a
+   paper ticket. Used on ticket cards and section dividers. */
+.perf-edge {
+  position: relative;
+}
+.perf-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 14px;
+  background-image: radial-gradient(circle at 7px 0, transparent 7px, #fbf7ef 7.5px);
+  background-size: 14px 14px;
+  background-repeat: repeat-x;
+}
+
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid #ef8b0c;
+  outline-offset: 2px;
+}
+
+@layer components {
+  .input {
+    @apply w-full rounded-lg border border-ink/15 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink/30 focus-ring;
+  }
+  .btn-primary {
+    @apply focus-ring rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-paper transition-colors hover:bg-stub-600 disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply focus-ring rounded-full border border-ink/15 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink/40 disabled:opacity-50;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
