@@ -71,9 +71,12 @@ export default function LandingPage() {
       </section>
 
       <footer className="px-6 py-10 text-center text-sm text-ink/40 md:px-12">
-        Hey Ticket — built for people who'd rather be running the event than
-        running a spreadsheet.
-      </footer>
+  <p>
+    Hey Ticket — built for people who'd rather be running the event than
+    running a spreadsheet.
+  </p>
+  <p className="mt-2 text-xs text-ink/30">A Beingtechy project</p>
+</footer>
     </main>
   );
 }
