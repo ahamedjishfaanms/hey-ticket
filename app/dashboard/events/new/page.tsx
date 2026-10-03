@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ImageUploader from "@/components/ImageUploader";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -70,40 +71,7 @@ export default function NewEventPage() {
           />
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium">
-            Cover image URL (optional)
-          </label>
-          <input
-            className="input"
-            value={coverImageUrl}
-            onChange={(e) => setCoverImageUrl(e.target.value)}
-            placeholder="https://example.com/your-banner.jpg"
-          />
-          <p className="mt-1 text-xs text-ink/40">
-            Paste a link to an image — shown on your event page and ticket.
-            Upload the image anywhere that gives you a public link (e.g.{" "}
-            <a
-              href="https://imgur.com/upload"
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              imgur.com
-            </a>
-            ) and paste the link here.
-          </p>
-          {coverImageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverImageUrl}
-              alt="Cover preview"
-              className="mt-3 h-32 w-full rounded-lg object-cover"
-              onError={(e) => (e.currentTarget.style.display = "none")}
-              onLoad={(e) => (e.currentTarget.style.display = "block")}
-            />
-          )}
-        </div>
+        <ImageUploader value={coverImageUrl} onChange={setCoverImageUrl} />
 
         <div>
           <label className="mb-1 block text-sm font-medium">Description</label>
