@@ -12,6 +12,8 @@ export default function NewEventPage() {
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [capacity, setCapacity] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [requireApproval, setRequireApproval] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +33,8 @@ export default function NewEventPage() {
         startsAt,
         endsAt,
         capacity,
+        coverImageUrl,
+        requireApproval,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
     });
@@ -64,6 +68,41 @@ export default function NewEventPage() {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Founders' Night"
           />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">
+            Cover image URL (optional)
+          </label>
+          <input
+            className="input"
+            value={coverImageUrl}
+            onChange={(e) => setCoverImageUrl(e.target.value)}
+            placeholder="https://example.com/your-banner.jpg"
+          />
+          <p className="mt-1 text-xs text-ink/40">
+            Paste a link to an image — shown on your event page and ticket.
+            Upload the image anywhere that gives you a public link (e.g.{" "}
+            <a
+              href="https://imgur.com/upload"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              imgur.com
+            </a>
+            ) and paste the link here.
+          </p>
+          {coverImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverImageUrl}
+              alt="Cover preview"
+              className="mt-3 h-32 w-full rounded-lg object-cover"
+              onError={(e) => (e.currentTarget.style.display = "none")}
+              onLoad={(e) => (e.currentTarget.style.display = "block")}
+            />
+          )}
         </div>
 
         <div>
@@ -131,6 +170,47 @@ export default function NewEventPage() {
             onChange={(e) => setCapacity(e.target.value)}
             placeholder="Leave blank for unlimited"
           />
+        </div>
+
+        <div className="rounded-xl border border-ink/10 bg-white p-4">
+          <p className="text-sm font-medium">How should registrations work?</p>
+          <div className="mt-3 space-y-2">
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-ink/10 p-3 has-[:checked]:border-stub-500 has-[:checked]:bg-stub-50">
+              <input
+                type="radio"
+                name="approval"
+                checked={!requireApproval}
+                onChange={() => setRequireApproval(false)}
+                className="mt-1"
+              />
+              <span>
+                <span className="block text-sm font-semibold">
+                  Instant ticket
+                </span>
+                <span className="block text-xs text-ink/50">
+                  Anyone who registers gets their ticket by email right away.
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-ink/10 p-3 has-[:checked]:border-stub-500 has-[:checked]:bg-stub-50">
+              <input
+                type="radio"
+                name="approval"
+                checked={requireApproval}
+                onChange={() => setRequireApproval(true)}
+                className="mt-1"
+              />
+              <span>
+                <span className="block text-sm font-semibold">
+                  Requires your approval
+                </span>
+                <span className="block text-xs text-ink/50">
+                  Registrations sit as pending until you approve them from the
+                  dashboard — the ticket is only sent once you do.
+                </span>
+              </span>
+            </label>
+          </div>
         </div>
 
         {error && <p className="text-sm text-rose">{error}</p>}

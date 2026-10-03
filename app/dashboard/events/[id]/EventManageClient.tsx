@@ -2,25 +2,35 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { EventRow, RegistrationRow } from "@/lib/types";
+import type { EventCollaboratorRow, EventRow, RegistrationRow } from "@/lib/types";
 
 export default function EventManageClient({
   event,
+  role,
   initialRegistrations,
+  initialCollaborators,
 }: {
   event: EventRow;
+  role: "organizer" | "cohost";
   initialRegistrations: RegistrationRow[];
+  initialCollaborators: EventCollaboratorRow[];
 }) {
   const [isPublished, setIsPublished] = useState(event.is_published);
   const [registrations, setRegistrations] = useState(initialRegistrations);
+  const [collaborators, setCollaborators] = useState(initialCollaborators);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [cohostEmail, setCohostEmail] = useState("");
+  const [cohostBusy, setCohostBusy] = useState(false);
+  const [cohostError, setCohostError] = useState<string | null>(null);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
 
   const eventUrl = useMemo(
     () => `${typeof window !== "undefined" ? window.location.origin : ""}/e/${event.slug}`,
     [event.slug]
   );
 
+  const pending = registrations.filter((r) => r.status === "pending");
   const confirmed = registrations.filter((r) => r.status === "confirmed");
   const waitlisted = registrations.filter((r) => r.status === "waitlisted");
   const checkedIn = registrations.filter((r) => r.checked_in_at);
@@ -40,6 +50,48 @@ export default function EventManageClient({
     await navigator.clipboard.writeText(eventUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function decide(registrationId: string, decision: "approve" | "reject") {
+    setDecidingId(registrationId);
+    const res = await fetch(`/api/registrations/${registrationId}/decision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decision }),
+    });
+    setDecidingId(null);
+    if (res.ok) {
+      const { registration } = await res.json();
+      setRegistrations((prev) => prev.map((r) => (r.id === registration.id ? registration : r)));
+    }
+  }
+
+  async function addCohost(e: React.FormEvent) {
+    e.preventDefault();
+    setCohostBusy(true);
+    setCohostError(null);
+    const res = await fetch(`/api/events/${event.id}/collaborators`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: cohostEmail }),
+    });
+    const data = await res.json();
+    setCohostBusy(false);
+    if (!res.ok) {
+      setCohostError(data.error || "Could not add co-host");
+      return;
+    }
+    setCollaborators((prev) => [...prev, data.collaborator]);
+    setCohostEmail("");
+  }
+
+  async function removeCohost(collaboratorId: string) {
+    await fetch(`/api/events/${event.id}/collaborators`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collaboratorId }),
+    });
+    setCollaborators((prev) => prev.filter((c) => c.id !== collaboratorId));
   }
 
   function exportCsv() {
@@ -68,6 +120,15 @@ export default function EventManageClient({
 
   return (
     <div>
+      {event.cover_image_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={event.cover_image_url}
+          alt=""
+          className="mb-6 h-40 w-full rounded-xl object-cover"
+        />
+      )}
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink/40">
@@ -76,6 +137,7 @@ export default function EventManageClient({
               month: "short",
               day: "numeric",
             })}
+            {role === "cohost" && " · You're a co-host"}
           </p>
           <h1 className="font-display text-3xl italic">{event.title}</h1>
         </div>
@@ -101,11 +163,47 @@ export default function EventManageClient({
         </div>
       )}
 
-      <div className="mt-8 grid grid-cols-3 gap-4">
+      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Pending" value={pending.length} />
         <Stat label="Confirmed" value={confirmed.length} />
         <Stat label="Waitlisted" value={waitlisted.length} />
         <Stat label="Checked in" value={checkedIn.length} />
       </div>
+
+      {pending.length > 0 && (
+        <div className="mt-10">
+          <h2 className="font-display text-xl">Needs your approval</h2>
+          <div className="mt-4 space-y-2">
+            {pending.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between rounded-xl border border-stub-400/40 bg-stub-50 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-semibold">{r.full_name}</p>
+                  <p className="text-xs text-ink/50">{r.email}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => decide(r.id, "reject")}
+                    disabled={decidingId === r.id}
+                    className="rounded-full border border-ink/15 px-3 py-1.5 text-xs font-semibold hover:border-rose hover:text-rose"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    onClick={() => decide(r.id, "approve")}
+                    disabled={decidingId === r.id}
+                    className="rounded-full bg-cord px-3 py-1.5 text-xs font-semibold text-paper hover:bg-cord/80"
+                  >
+                    Approve
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-10 flex items-center justify-between">
         <h2 className="font-display text-xl">Attendees</h2>
@@ -155,6 +253,50 @@ export default function EventManageClient({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {role === "organizer" && (
+        <div className="mt-10">
+          <h2 className="font-display text-xl">Co-hosts</h2>
+          <p className="mt-1 text-sm text-ink/50">
+            Add someone by email to let them manage this event — see
+            registrations, approve requests, and check people in.
+          </p>
+
+          {collaborators.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {collaborators.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between rounded-lg border border-ink/10 bg-white px-4 py-2.5"
+                >
+                  <span className="text-sm">{c.email}</span>
+                  <button
+                    onClick={() => removeCohost(c.id)}
+                    className="text-xs font-semibold text-ink/40 hover:text-rose"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={addCohost} className="mt-4 flex gap-2">
+            <input
+              type="email"
+              required
+              value={cohostEmail}
+              onChange={(e) => setCohostEmail(e.target.value)}
+              placeholder="cohost@example.com"
+              className="input flex-1"
+            />
+            <button disabled={cohostBusy} className="btn-secondary">
+              {cohostBusy ? "Adding…" : "Add co-host"}
+            </button>
+          </form>
+          {cohostError && <p className="mt-2 text-sm text-rose">{cohostError}</p>}
         </div>
       )}
     </div>

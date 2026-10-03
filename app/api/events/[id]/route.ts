@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { sql } from "@/lib/db";
+import { getManageableEvent } from "@/lib/access";
 
 export async function PATCH(
   request: Request,
@@ -9,6 +10,12 @@ export async function PATCH(
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
+  // Organizer or co-host may toggle publish state.
+  const existing = await getManageableEvent(params.id, userId);
+  if (!existing) {
+    return NextResponse.json({ error: "Not found or not authorized" }, { status: 404 });
   }
 
   const body = await request.json();
@@ -20,13 +27,9 @@ export async function PATCH(
   const [event] = await sql`
     update events
     set is_published = ${body.is_published}
-    where id = ${params.id} and organizer_id = ${userId}
+    where id = ${params.id}
     returning *
   `;
-
-  if (!event) {
-    return NextResponse.json({ error: "Not found or not authorized" }, { status: 404 });
-  }
 
   return NextResponse.json({ event });
 }

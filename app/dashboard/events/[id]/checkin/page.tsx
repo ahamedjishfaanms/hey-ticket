@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { sql } from "@/lib/db";
-import type { EventRow } from "@/lib/types";
+import { getManageableEvent } from "@/lib/access";
 import CheckinClient from "./CheckinClient";
 
 export default async function CheckinPage({
@@ -11,10 +10,7 @@ export default async function CheckinPage({
 }) {
   const { userId } = await auth();
 
-  const [event] = (await sql`
-    select * from events where id = ${params.id} and organizer_id = ${userId}
-  `) as EventRow[];
-
+  const event = await getManageableEvent(params.id, userId);
   if (!event) notFound();
 
   return <CheckinClient event={event} />;

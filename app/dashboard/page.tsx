@@ -1,13 +1,21 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { sql } from "@/lib/db";
 import type { EventRow } from "@/lib/types";
+import DashboardTabs from "@/components/DashboardTabs";
 
 export default async function DashboardHome() {
   const { userId } = await auth();
+  const user = await currentUser();
+  const email = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
 
+  // Events you own, plus events you've been added to as a co-host.
   const rows = (await sql`
-    select * from events where organizer_id = ${userId} order by starts_at asc
+    select distinct e.* from events e
+    left join event_collaborators c on c.event_id = e.id
+    where e.organizer_id = ${userId}
+       or c.email = ${email || ""}
+    order by e.starts_at asc
   `) as EventRow[];
 
   const upcoming = rows.filter((e) => new Date(e.starts_at) >= new Date());
@@ -15,6 +23,7 @@ export default async function DashboardHome() {
 
   return (
     <div>
+      <DashboardTabs active="hosting" />
       <h1 className="font-display text-3xl italic">Your events</h1>
 
       {rows.length === 0 ? (

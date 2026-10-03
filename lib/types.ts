@@ -1,4 +1,4 @@
-export type RegistrationStatus = "confirmed" | "waitlisted" | "cancelled";
+export type RegistrationStatus = "pending" | "confirmed" | "waitlisted" | "cancelled";
 
 export interface EventRow {
   id: string;
@@ -31,6 +31,8 @@ export interface RegistrationRow {
   checked_in_by: string | null;
   reminder_sent_at: string | null;
   confirmation_sent_at: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
   created_at: string;
 }
 
@@ -39,4 +41,18 @@ export interface AttendanceSummary {
   confirmed_count: number;
   waitlisted_count: number;
   checked_in_count: number;
+}
+
+export interface EventCollaboratorRow {
+  id: string;
+  event_id: string;
+  email: string;
+  invited_by: string;
+  created_at: string;
+}
+
+// An event row the signed-in user can manage, annotated with whether
+// they're the original organizer or were added as a co-host.
+export interface ManagedEventRow extends EventRow {
+  role: "organizer" | "cohost";
 }

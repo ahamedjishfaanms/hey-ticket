@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { sql } from "@/lib/db";
+import { getManageableEvent } from "@/lib/access";
 
 export async function POST(request: Request) {
   const { eventId, ticketCode } = await request.json();
@@ -14,11 +15,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  // Only the organizer who owns this event can check tickets in.
-  const [event] = await sql`
-    select id from events where id = ${eventId} and organizer_id = ${userId}
-  `;
-
+  // Organizer or co-host only.
+  const event = await getManageableEvent(eventId, userId);
   if (!event) {
     return NextResponse.json({ error: "Not authorized for this event" }, { status: 403 });
   }
@@ -34,6 +32,20 @@ export async function POST(request: Request) {
 
   if (registration.status === "cancelled") {
     return NextResponse.json({ error: "This ticket was cancelled" }, { status: 409 });
+  }
+
+  if (registration.status === "pending") {
+    return NextResponse.json(
+      { error: "This request hasn't been approved yet" },
+      { status: 409 }
+    );
+  }
+
+  if (registration.status === "waitlisted") {
+    return NextResponse.json(
+      { error: "This person is on the waitlist, not confirmed" },
+      { status: 409 }
+    );
   }
 
   const alreadyCheckedIn = Boolean(registration.checked_in_at);

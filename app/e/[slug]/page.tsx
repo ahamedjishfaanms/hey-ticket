@@ -33,6 +33,14 @@ export default async function PublicEventPage({
 
   return (
     <main className="min-h-screen bg-paper text-ink">
+      {event.cover_image_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={event.cover_image_url}
+          alt=""
+          className="h-56 w-full object-cover md:h-72"
+        />
+      )}
       <div className="mx-auto grid max-w-4xl grid-cols-1 gap-10 px-6 py-16 md:grid-cols-[3fr_2fr] md:py-24">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-stub-600">
@@ -69,7 +77,11 @@ export default async function PublicEventPage({
         </div>
 
         <div className="h-fit rounded-2xl border border-ink/10 bg-white p-6">
-          <RegisterForm eventId={event.id} isFull={isFull} />
+          <RegisterForm
+            eventId={event.id}
+            isFull={isFull}
+            requiresApproval={event.require_approval}
+          />
         </div>
       </div>
     </main>

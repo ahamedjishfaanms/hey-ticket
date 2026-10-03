@@ -34,6 +34,8 @@ export async function POST(request: Request) {
     endsAt,
     capacity,
     timezone,
+    coverImageUrl,
+    requireApproval,
   } = body;
 
   if (!title || !startsAt) {
@@ -45,7 +47,7 @@ export async function POST(request: Request) {
   const [event] = await sql`
     insert into events (
       organizer_id, slug, title, description, location, is_online, meeting_url,
-      starts_at, ends_at, timezone, capacity
+      starts_at, ends_at, timezone, capacity, cover_image_url, require_approval
     ) values (
       ${userId}, ${slug}, ${title}, ${description || null},
       ${isOnline ? null : location || null}, ${Boolean(isOnline)},
@@ -53,7 +55,9 @@ export async function POST(request: Request) {
       ${new Date(startsAt).toISOString()},
       ${endsAt ? new Date(endsAt).toISOString() : null},
       ${timezone || "UTC"},
-      ${capacity ? Number(capacity) : null}
+      ${capacity ? Number(capacity) : null},
+      ${coverImageUrl || null},
+      ${Boolean(requireApproval)}
     )
     returning *
   `;

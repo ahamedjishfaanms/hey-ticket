@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { generateTicketCode } from "@/lib/tickets";
-import { sendConfirmationEmail } from "@/lib/email";
+import {
+  sendConfirmationEmail,
+  sendPendingReceivedEmail,
+  sendHostNewPendingEmail,
+} from "@/lib/email";
 import type { EventRow } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -26,13 +30,17 @@ export async function POST(request: Request) {
 
   const isFull = event.capacity != null && confirmedCount >= event.capacity;
 
+  // Three possible outcomes: pending host approval, waitlisted (event is
+  // full), or confirmed outright — in that priority order.
+  const status = event.require_approval ? "pending" : isFull ? "waitlisted" : "confirmed";
+
   let registration;
   try {
     [registration] = await sql`
       insert into registrations (event_id, full_name, email, status, ticket_code)
       values (
         ${eventId}, ${fullName}, ${email.toLowerCase().trim()},
-        ${isFull ? "waitlisted" : "confirmed"}, ${generateTicketCode()}
+        ${status}, ${generateTicketCode()}
       )
       returning *
     `;
@@ -48,18 +56,40 @@ export async function POST(request: Request) {
   }
 
   try {
-    await sendConfirmationEmail(event, registration as any);
+    if (status === "pending") {
+      await sendPendingReceivedEmail(event, registration as any);
+
+      // Notify the organizer and every co-host that a decision is waiting.
+      const [organizer] = await sql`
+        select email from profiles where id = ${event.organizer_id}
+      `;
+      const cohosts = await sql`
+        select email from event_collaborators where event_id = ${eventId}
+      `;
+      const hostEmails = [organizer?.email, ...cohosts.map((c: any) => c.email)].filter(
+        Boolean
+      ) as string[];
+
+      for (const hostEmail of hostEmails) {
+        await sendHostNewPendingEmail(event, registration as any, hostEmail);
+      }
+    } else {
+      await sendConfirmationEmail(event, registration as any);
+    }
+
     await sql`
       update registrations set confirmation_sent_at = now() where id = ${registration.id}
     `;
   } catch (err) {
     // Don't fail the registration if the email provider has a hiccup —
-    // the ticket still exists and is viewable at /ticket/[id].
-    console.error("Failed to send confirmation email", err);
+    // the record still exists and is viewable at /ticket/[id].
+    console.error("Failed to send registration email", err);
   }
 
   return NextResponse.json({
-    waitlisted: isFull,
+    status,
+    waitlisted: status === "waitlisted",
+    pending: status === "pending",
     ticketId: registration.id,
   });
 }
