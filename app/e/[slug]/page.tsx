@@ -3,6 +3,10 @@ import { sql } from "@/lib/db";
 import type { EventRow } from "@/lib/types";
 import RegisterForm from "./RegisterForm";
 
+// Publish status and capacity can change after this page is first
+// requested, so it must never be served from a stale cache.
+export const dynamic = "force-dynamic";
+
 export default async function PublicEventPage({
   params,
 }: {

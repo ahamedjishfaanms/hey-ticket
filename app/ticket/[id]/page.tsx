@@ -4,6 +4,11 @@ import { ticketQrDataUrl } from "@/lib/tickets";
 import TicketCardClient from "@/components/TicketCardClient";
 import type { EventRow, RegistrationRow } from "@/lib/types";
 
+// Same reasoning as /certificate/[id] — registration status, check-in
+// time, and certificate eligibility can all change after this page is
+// first visited, so it must never be served from a stale cache.
+export const dynamic = "force-dynamic";
+
 export default async function TicketPage({ params }: { params: { id: string } }) {
   const [registration] = (await sql`
     select * from registrations where id = ${params.id}

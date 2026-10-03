@@ -7,6 +7,13 @@ import type { EventRow, RegistrationRow } from "@/lib/types";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+// This page reads live data (certificate settings, check-in status) that
+// can change after the page was first requested — e.g. a host turning on
+// certificates, or someone getting checked in. Without this, Next.js can
+// cache the very first render (including a "not eligible yet" result) and
+// keep serving it indefinitely.
+export const dynamic = "force-dynamic";
+
 export default async function CertificatePage({ params }: { params: { id: string } }) {
   const [registration] = (await sql`
     select * from registrations where id = ${params.id}
