@@ -5,9 +5,17 @@ import { useRef, useState } from "react";
 export default function ImageUploader({
   value,
   onChange,
+  label = "Cover image (optional)",
+  helpText = "PNG or JPG, up to 10MB",
+  previewClassName = "h-40 w-full rounded-lg object-cover",
+  boxClassName = "h-32 w-full",
 }: {
   value: string;
   onChange: (url: string) => void;
+  label?: string;
+  helpText?: string;
+  previewClassName?: string;
+  boxClassName?: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -45,18 +53,12 @@ export default function ImageUploader({
 
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium">
-        Cover image (optional)
-      </label>
+      {label && <label className="mb-1 block text-sm font-medium">{label}</label>}
 
       {value ? (
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={value}
-            alt="Cover preview"
-            className="h-40 w-full rounded-lg object-cover"
-          />
+          <img src={value} alt="Preview" className={previewClassName} />
           <button
             type="button"
             onClick={() => onChange("")}
@@ -70,14 +72,14 @@ export default function ImageUploader({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="flex h-32 w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-ink/15 text-sm text-ink/50 hover:border-stub-400 hover:text-stub-600 disabled:opacity-50"
+          className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-ink/15 text-sm text-ink/50 hover:border-stub-400 hover:text-stub-600 disabled:opacity-50 ${boxClassName}`}
         >
           {uploading ? (
             <span>Uploading…</span>
           ) : (
             <>
               <span className="font-semibold">Click to upload an image</span>
-              <span className="text-xs text-ink/40">PNG or JPG, up to 10MB</span>
+              <span className="text-xs text-ink/40">{helpText}</span>
             </>
           )}
         </button>

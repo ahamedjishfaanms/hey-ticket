@@ -23,6 +23,9 @@ function baseTemplate(opts: {
   body: string;
   ctaUrl?: string;
   ctaLabel?: string;
+  // Rendered ticket card HTML (see ticketCardHtml below), shown between
+  // the body text and the CTA button.
+  ticketCard?: string;
 }) {
   const cta = opts.ctaUrl
     ? `<a href="${opts.ctaUrl}" style="display:inline-block; margin-top:20px; background:#14151A; color:#FBF7EF; text-decoration:none; padding:12px 22px; border-radius:8px; font-weight:600; font-size:14px;">${opts.ctaLabel || "View"}</a>`
@@ -33,31 +36,84 @@ function baseTemplate(opts: {
     <div style="font-size:13px; letter-spacing: 2px; text-transform: uppercase; color:#C96A05; font-weight:700; margin-bottom:8px;">Hey Ticket</div>
     <h1 style="font-size:22px; color:#14151A; margin:0 0 16px;">${opts.heading}</h1>
     <p style="font-size:15px; line-height:1.6; color:#33343A;">${opts.body}</p>
+    ${opts.ticketCard || ""}
     ${cta}
     <p style="font-size:12px; color:#8A8B90; margin-top:32px;">Sent by HeyTicket on behalf of the event organizer.</p>
   </div>`;
 }
 
+// Renders the actual ticket — cover image banner, event details, QR code
+// — as an HTML block to embed directly in the email. The QR is loaded
+// from a public image URL (not a data: URI), since Gmail and other
+// clients strip inline data URIs from emails.
+function ticketCardHtml(event: EventRow, reg: RegistrationRow) {
+  const qrUrl = `${APP_URL}/api/tickets/${reg.id}/qr`;
+  const cover = event.cover_image_url
+    ? `<img src="${event.cover_image_url}" alt="" width="432" style="display:block; width:100%; max-width:432px; height:140px; object-fit:cover; border-radius:12px 12px 0 0;" />`
+    : "";
+
+  return `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px; max-width:432px; border:1px solid #E7E0D0; border-radius:12px; overflow:hidden; background:#ffffff;">
+    <tr><td style="padding:0;">${cover}</td></tr>
+    <tr>
+      <td style="padding:20px 20px 0;">
+        <p style="margin:0; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#C96A05; font-weight:700;">Admit one</p>
+        <p style="margin:4px 0 0; font-size:19px; font-weight:700; color:#14151A;">${event.title}</p>
+        <p style="margin:4px 0 0; font-size:13px; color:#6B6C72;">${formatWhen(event)}</p>
+        ${event.location ? `<p style="margin:2px 0 0; font-size:13px; color:#6B6C72;">${event.location}</p>` : ""}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+          <tr>
+            <td style="text-align:center; padding:12px; background:#ffffff;">
+              <img src="${qrUrl}" alt="QR ticket code ${reg.ticket_code}" width="160" height="160" style="display:inline-block; border:1px solid #F0EBDD; border-radius:8px;" />
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 20px 20px; border-top:1px dashed #E7E0D0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+          <tr>
+            <td style="font-size:11px; color:#8A8B90;">Ticket holder<br/><span style="font-size:14px; color:#14151A; font-weight:600;">${reg.full_name}</span></td>
+            <td style="font-size:11px; color:#8A8B90; text-align:right;">Code<br/><span style="font-size:13px; color:#14151A; font-family:monospace;">${reg.ticket_code}</span></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>`;
+}
+
 export async function sendConfirmationEmail(event: EventRow, reg: RegistrationRow) {
   const ticketUrl = `${APP_URL}/ticket/${reg.id}`;
-  const statusLine =
-    reg.status === "waitlisted"
-      ? "You're on the waitlist — we'll email you if a spot opens up."
-      : `You're in! Here's your ticket for <strong>${event.title}</strong>, happening ${formatWhen(event)}.`;
+
+  if (reg.status === "waitlisted") {
+    return resend.emails.send({
+      from: FROM,
+      to: reg.email,
+      subject: `You're on the waitlist for ${event.title}`,
+      html: baseTemplate({
+        heading: "You're on the waitlist",
+        body: `Hi ${reg.full_name.split(" ")[0]}, you're on the waitlist for <strong>${event.title}</strong> — we'll email you if a spot opens up.`,
+        ctaUrl: ticketUrl,
+        ctaLabel: "View status",
+      }),
+    });
+  }
 
   return resend.emails.send({
     from: FROM,
     to: reg.email,
-    subject:
-      reg.status === "waitlisted"
-        ? `You're on the waitlist for ${event.title}`
-        : `Your ticket for ${event.title}`,
+    subject: `Your ticket for ${event.title}`,
     html: baseTemplate({
-      heading:
-        reg.status === "waitlisted" ? "You're on the waitlist" : "You're going! 🎟️",
-      body: `Hi ${reg.full_name.split(" ")[0]}, ${statusLine}`,
+      heading: "You're going! 🎟️",
+      body: `Hi ${reg.full_name.split(" ")[0]}, you're in — here's your ticket for <strong>${event.title}</strong>.`,
+      ticketCard: ticketCardHtml(event, reg),
       ctaUrl: ticketUrl,
-      ctaLabel: "View my ticket",
+      ctaLabel: "Open full ticket",
     }),
   });
 }
@@ -107,9 +163,10 @@ export async function sendApprovedEmail(event: EventRow, reg: RegistrationRow) {
     subject: `You're approved for ${event.title}`,
     html: baseTemplate({
       heading: "You're in! 🎟️",
-      body: `Hi ${reg.full_name.split(" ")[0]}, the host approved your request for <strong>${event.title}</strong>, happening ${formatWhen(event)}. Here's your ticket.`,
+      body: `Hi ${reg.full_name.split(" ")[0]}, the host approved your request for <strong>${event.title}</strong>. Here's your ticket.`,
+      ticketCard: ticketCardHtml(event, reg),
       ctaUrl: ticketUrl,
-      ctaLabel: "View my ticket",
+      ctaLabel: "Open full ticket",
     }),
   });
 }
@@ -135,9 +192,40 @@ export async function sendReminderEmail(event: EventRow, reg: RegistrationRow) {
     subject: `Reminder: ${event.title} is coming up`,
     html: baseTemplate({
       heading: "See you soon 👋",
-      body: `Hi ${reg.full_name.split(" ")[0]}, just a reminder that <strong>${event.title}</strong> starts ${formatWhen(event)}${event.location ? ` at ${event.location}` : ""}. Bring your QR ticket for fast check-in.`,
+      body: `Hi ${reg.full_name.split(" ")[0]}, just a reminder that <strong>${event.title}</strong> starts ${formatWhen(event)}${event.location ? ` at ${event.location}` : ""}. Bring this ticket for fast check-in.`,
+      ticketCard: ticketCardHtml(event, reg),
       ctaUrl: ticketUrl,
-      ctaLabel: "View my ticket",
+      ctaLabel: "Open full ticket",
+    }),
+  });
+}
+
+// Sent after the event is over — optional gallery link and/or a link to
+// the attendee's certificate, if the host turned certificates on.
+export async function sendThankYouEmail(
+  event: EventRow,
+  reg: RegistrationRow,
+  opts: { galleryUrl?: string | null; message?: string | null; certificateUrl?: string | null }
+) {
+  const extras = [
+    opts.message
+      ? `<p style="margin:16px 0 0; font-size:15px; line-height:1.6; color:#33343A;">${opts.message}</p>`
+      : "",
+    opts.galleryUrl
+      ? `<p style="margin:16px 0 0;"><a href="${opts.galleryUrl}" style="color:#C96A05; font-weight:600; text-decoration:none;">View event photos →</a></p>`
+      : "",
+  ].join("");
+
+  return resend.emails.send({
+    from: FROM,
+    to: reg.email,
+    subject: `Thank you for joining ${event.title}`,
+    html: baseTemplate({
+      heading: "Thanks for being there 🎉",
+      body: `Hi ${reg.full_name.split(" ")[0]}, thank you for joining <strong>${event.title}</strong> — it wouldn't have been the same without you.`,
+      ticketCard: extras || undefined,
+      ctaUrl: opts.certificateUrl || undefined,
+      ctaLabel: opts.certificateUrl ? "View your certificate" : undefined,
     }),
   });
 }

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { EventCollaboratorRow, EventRow, RegistrationRow } from "@/lib/types";
+import ImageUploader from "@/components/ImageUploader";
+import type { CertificateMode, EventCollaboratorRow, EventRow, RegistrationRow } from "@/lib/types";
 
 export default function EventManageClient({
   event,
@@ -24,6 +25,26 @@ export default function EventManageClient({
   const [cohostBusy, setCohostBusy] = useState(false);
   const [cohostError, setCohostError] = useState<string | null>(null);
   const [decidingId, setDecidingId] = useState<string | null>(null);
+
+  // Branding & certificates
+  const [logoUrl, setLogoUrl] = useState(event.logo_url || "");
+  const [certificateMode, setCertificateMode] = useState<CertificateMode>(event.certificate_mode);
+  const [signer1Name, setSigner1Name] = useState(event.signer1_name || "");
+  const [signer1Title, setSigner1Title] = useState(event.signer1_title || "");
+  const [signer1SignatureUrl, setSigner1SignatureUrl] = useState(event.signer1_signature_url || "");
+  const [signer2Name, setSigner2Name] = useState(event.signer2_name || "");
+  const [signer2Title, setSigner2Title] = useState(event.signer2_title || "");
+  const [signer2SignatureUrl, setSigner2SignatureUrl] = useState(event.signer2_signature_url || "");
+  const [brandingBusy, setBrandingBusy] = useState(false);
+  const [brandingError, setBrandingError] = useState<string | null>(null);
+  const [brandingSaved, setBrandingSaved] = useState(false);
+
+  // Post-event
+  const [galleryUrl, setGalleryUrl] = useState(event.gallery_url || "");
+  const [thankYouMessage, setThankYouMessage] = useState(event.thank_you_message || "");
+  const [audience, setAudience] = useState<"all_confirmed" | "checked_in_only">("all_confirmed");
+  const [thankYouBusy, setThankYouBusy] = useState(false);
+  const [thankYouResult, setThankYouResult] = useState<string | null>(null);
 
   const eventUrl = useMemo(
     () => `${typeof window !== "undefined" ? window.location.origin : ""}/e/${event.slug}`,
@@ -92,6 +113,62 @@ export default function EventManageClient({
       body: JSON.stringify({ collaboratorId }),
     });
     setCollaborators((prev) => prev.filter((c) => c.id !== collaboratorId));
+  }
+
+  async function saveBranding() {
+    setBrandingBusy(true);
+    setBrandingError(null);
+    setBrandingSaved(false);
+    const res = await fetch(`/api/events/${event.id}/branding`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        logoUrl,
+        certificateMode,
+        signer1Name,
+        signer1Title,
+        signer1SignatureUrl,
+        signer2Name,
+        signer2Title,
+        signer2SignatureUrl,
+      }),
+    });
+    const data = await res.json();
+    setBrandingBusy(false);
+    if (!res.ok) {
+      setBrandingError(data.error || "Could not save");
+      return;
+    }
+    setBrandingSaved(true);
+    setTimeout(() => setBrandingSaved(false), 2500);
+  }
+
+  async function sendThankYous() {
+    setThankYouBusy(true);
+    setThankYouResult(null);
+    const res = await fetch(`/api/events/${event.id}/thank-you`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audience, galleryUrl, message: thankYouMessage }),
+    });
+    const data = await res.json();
+    setThankYouBusy(false);
+    if (!res.ok) {
+      setThankYouResult(data.error || "Something went wrong");
+      return;
+    }
+    setRegistrations((prev) =>
+      prev.map((r) =>
+        r.thank_you_sent_at || data.sent === 0
+          ? r
+          : { ...r, thank_you_sent_at: new Date().toISOString() }
+      )
+    );
+    setThankYouResult(
+      data.total === 0
+        ? "Everyone in this audience has already been thanked."
+        : `Sent ${data.sent} of ${data.total}${data.failed ? ` (${data.failed} failed)` : ""}.`
+    );
   }
 
   function exportCsv() {
@@ -299,6 +376,178 @@ export default function EventManageClient({
           {cohostError && <p className="mt-2 text-sm text-rose">{cohostError}</p>}
         </div>
       )}
+
+      <div className="mt-10">
+        <h2 className="font-display text-xl">Branding &amp; certificates</h2>
+        <p className="mt-1 text-sm text-ink/50">
+          Add a logo for the ticket, and optionally issue certificates to attendees.
+        </p>
+
+        <div className="mt-4 max-w-sm">
+          <ImageUploader
+            value={logoUrl}
+            onChange={setLogoUrl}
+            label="Event logo (optional)"
+            helpText="Square image works best"
+            previewClassName="h-20 w-20 rounded-lg object-cover"
+            boxClassName="h-20 w-20"
+          />
+        </div>
+
+        <div className="mt-6">
+          <label className="mb-1 block text-sm font-medium">Certificates</label>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { value: "off", label: "Off" },
+                { value: "participation", label: "Participation" },
+                { value: "attendance", label: "Attendance (checked-in only)" },
+              ] as { value: CertificateMode; label: string }[]
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setCertificateMode(opt.value)}
+                className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${
+                  certificateMode === opt.value
+                    ? "border-cord bg-cord/10 text-cord"
+                    : "border-ink/15 text-ink/60 hover:border-ink/30"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {certificateMode !== "off" && (
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            <div>
+              <p className="text-sm font-semibold">Signer 1 (required)</p>
+              <input
+                value={signer1Name}
+                onChange={(e) => setSigner1Name(e.target.value)}
+                placeholder="Full name"
+                className="input mt-2"
+              />
+              <input
+                value={signer1Title}
+                onChange={(e) => setSigner1Title(e.target.value)}
+                placeholder="Title, e.g. Event Director"
+                className="input mt-2"
+              />
+              <div className="mt-2 max-w-xs">
+                <ImageUploader
+                  value={signer1SignatureUrl}
+                  onChange={setSigner1SignatureUrl}
+                  label="Signature image"
+                  helpText="Transparent PNG works best"
+                  previewClassName="h-16 w-full rounded-lg bg-white object-contain p-2"
+                  boxClassName="h-16 w-full"
+                />
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Signer 2 (optional)</p>
+              <input
+                value={signer2Name}
+                onChange={(e) => setSigner2Name(e.target.value)}
+                placeholder="Full name"
+                className="input mt-2"
+              />
+              <input
+                value={signer2Title}
+                onChange={(e) => setSigner2Title(e.target.value)}
+                placeholder="Title"
+                className="input mt-2"
+              />
+              <div className="mt-2 max-w-xs">
+                <ImageUploader
+                  value={signer2SignatureUrl}
+                  onChange={setSigner2SignatureUrl}
+                  label="Signature image"
+                  helpText="Transparent PNG works best"
+                  previewClassName="h-16 w-full rounded-lg bg-white object-contain p-2"
+                  boxClassName="h-16 w-full"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-5 flex items-center gap-3">
+          <button onClick={saveBranding} disabled={brandingBusy} className="btn-primary">
+            {brandingBusy ? "Saving…" : "Save branding"}
+          </button>
+          {brandingSaved && <span className="text-sm text-cord">Saved ✓</span>}
+        </div>
+        {brandingError && <p className="mt-2 text-sm text-rose">{brandingError}</p>}
+      </div>
+
+      <div className="mt-10">
+        <h2 className="font-display text-xl">Post-event</h2>
+        <p className="mt-1 text-sm text-ink/50">
+          Send a thank-you email once the event wraps — with an optional photo link and,
+          if certificates are turned on, a link to each attendee's certificate.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Photo / gallery link (optional)</label>
+            <input
+              value={galleryUrl}
+              onChange={(e) => setGalleryUrl(e.target.value)}
+              placeholder="https://..."
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Audience</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setAudience("all_confirmed")}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  audience === "all_confirmed"
+                    ? "border-cord bg-cord/10 text-cord"
+                    : "border-ink/15 text-ink/60"
+                }`}
+              >
+                All confirmed
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudience("checked_in_only")}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  audience === "checked_in_only"
+                    ? "border-cord bg-cord/10 text-cord"
+                    : "border-ink/15 text-ink/60"
+                }`}
+              >
+                Checked-in only
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="mb-1 block text-sm font-medium">Message (optional)</label>
+          <textarea
+            value={thankYouMessage}
+            onChange={(e) => setThankYouMessage(e.target.value)}
+            rows={3}
+            placeholder="A personal note to include in the thank-you email..."
+            className="input"
+          />
+        </div>
+
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={sendThankYous} disabled={thankYouBusy} className="btn-primary">
+            {thankYouBusy ? "Sending…" : "Send thank-you emails"}
+          </button>
+          {thankYouResult && <span className="text-sm text-ink/60">{thankYouResult}</span>}
+        </div>
+      </div>
     </div>
   );
 }

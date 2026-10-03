@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { sql } from "@/lib/db";
 import { ticketQrDataUrl } from "@/lib/tickets";
+import TicketCardClient from "@/components/TicketCardClient";
 import type { EventRow, RegistrationRow } from "@/lib/types";
 
 export default async function TicketPage({ params }: { params: { id: string } }) {
@@ -41,62 +41,33 @@ export default async function TicketPage({ params }: { params: { id: string } })
       ? "Cancelled"
       : "Admit one";
 
+  const certificateEligible =
+    event.certificate_mode === "participation"
+      ? registration.status === "confirmed" || registration.status === "waitlisted"
+      : event.certificate_mode === "attendance"
+      ? !!registration.checked_in_at
+      : false;
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-ink px-6 py-16">
-      <div className="perf-edge w-full max-w-sm overflow-hidden rounded-2xl bg-paper pb-10 text-ink shadow-2xl">
-        {event.cover_image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={event.cover_image_url} alt="" className="h-32 w-full object-cover" />
-        )}
-        <div className="p-6 pb-0">
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-stub-600">
-            {statusLabel}
-          </p>
-          <h1 className="mt-1 font-display text-2xl italic">{event.title}</h1>
-          <p className="mt-1 text-sm text-ink/60">{when}</p>
-          {event.location && <p className="text-sm text-ink/60">{event.location}</p>}
-
-          {registration.status === "pending" ? (
-            <div className="mt-6 rounded-xl bg-stub-50 p-6 text-center">
-              <p className="text-3xl">👀</p>
-              <p className="mt-2 text-sm text-ink/70">
-                The host hasn't approved this request yet. Your ticket and QR
-                code will appear here the moment they do.
-              </p>
-            </div>
-          ) : qr ? (
-            <div className="mt-6 flex justify-center rounded-xl bg-white p-6">
-              <Image
-                src={qr}
-                alt={`QR code for ticket ${registration.ticket_code}`}
-                width={220}
-                height={220}
-              />
-            </div>
-          ) : null}
-
-          <div className="mt-6 flex items-center justify-between border-t border-dashed border-ink/20 pt-6">
-            <div>
-              <p className="text-xs text-ink/40">Ticket holder</p>
-              <p className="font-medium">{registration.full_name}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-ink/40">Code</p>
-              <p className="font-mono text-sm">{registration.ticket_code}</p>
-            </div>
-          </div>
-
-          {registration.checked_in_at && (
-            <p className="mt-4 rounded-lg bg-cord/10 px-3 py-2 text-center text-xs font-semibold text-cord">
-              Checked in at{" "}
-              {new Date(registration.checked_in_at).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </p>
-          )}
-        </div>
-      </div>
+      <TicketCardClient
+        event={{
+          title: event.title,
+          cover_image_url: event.cover_image_url,
+          logo_url: event.logo_url,
+          location: event.location,
+        }}
+        registration={{
+          full_name: registration.full_name,
+          ticket_code: registration.ticket_code,
+          status: registration.status,
+          checked_in_at: registration.checked_in_at,
+        }}
+        qr={qr}
+        statusLabel={statusLabel}
+        when={when}
+        certificateUrl={certificateEligible ? `/certificate/${registration.id}` : null}
+      />
     </main>
   );
 }

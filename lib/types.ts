@@ -1,5 +1,7 @@
 export type RegistrationStatus = "pending" | "confirmed" | "waitlisted" | "cancelled";
 
+export type CertificateMode = "off" | "participation" | "attendance";
+
 export interface EventRow {
   id: string;
   organizer_id: string;
@@ -7,6 +9,7 @@ export interface EventRow {
   title: string;
   description: string | null;
   cover_image_url: string | null;
+  logo_url: string | null;
   location: string | null;
   is_online: boolean;
   meeting_url: string | null;
@@ -17,6 +20,15 @@ export interface EventRow {
   is_published: boolean;
   require_approval: boolean;
   reminder_hours_before: number;
+  certificate_mode: CertificateMode;
+  signer1_name: string | null;
+  signer1_title: string | null;
+  signer1_signature_url: string | null;
+  signer2_name: string | null;
+  signer2_title: string | null;
+  signer2_signature_url: string | null;
+  gallery_url: string | null;
+  thank_you_message: string | null;
   created_at: string;
 }
 
@@ -33,6 +45,7 @@ export interface RegistrationRow {
   confirmation_sent_at: string | null;
   reviewed_at: string | null;
   reviewed_by: string | null;
+  thank_you_sent_at: string | null;
   created_at: string;
 }
 

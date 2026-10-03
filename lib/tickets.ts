@@ -20,3 +20,15 @@ export async function ticketQrDataUrl(ticketCode: string) {
     color: { dark: "#14151A", light: "#00000000" },
   });
 }
+
+// Same QR, as a PNG buffer rather than a data URL. Used by the
+// /api/tickets/[id]/qr image route — emails can't reliably show a
+// data: URI (Gmail and others strip it), but they can load a normal
+// https:// <img> URL, so the QR needs to be served as a real image.
+export async function ticketQrPngBuffer(ticketCode: string) {
+  return QRCode.toBuffer(ticketCode, {
+    margin: 1,
+    width: 480,
+    color: { dark: "#14151A", light: "#FFFFFFFF" },
+  });
+}
