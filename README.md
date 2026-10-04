@@ -20,7 +20,7 @@ automatically, and check people in at the door with a camera scan.
 - **Confirmation & reminder emails** — sent via Resend, reminder timing configurable per event, delivered by an hourly Vercel Cron job
 - **Attendance / check-in** — camera-based QR scanner (or manual code entry) at `/dashboard/events/[id]/checkin`, live attendee list, CSV export
 
-- **Public event page** — cover, date in the visitor's own timezone, Google Maps link, spots left / who's going, countdown, sticky mobile "Get ticket" bar, one-step registration with instant QR + Add to Calendar + share, agenda, speakers, map, FAQ, organizer card, dark mode, Arabic (`?lang=ar`, or automatic from the browser language)
+- **Public event page** — cover, date in the visitor's own timezone, Google Maps link, spots left / who's going, countdown, sticky mobile "Get ticket" bar, one-step registration with instant QR + Add to Calendar + share, agenda, speakers, map, FAQ, organizer card, dark mode
 - **Admin moderation** — `/admin` lists every event from every organizer; suspend illegal/unsafe events (hidden, registration closed, organizer emailed), restore them, and review public "Report this event" flags
 
 ## 1. Create the Neon database

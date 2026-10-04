@@ -1,11 +1,10 @@
 import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { sql } from "@/lib/db";
 import { getAdminUserId } from "@/lib/admin";
-import { getDict, pickLang, type Lang } from "@/lib/eventPageI18n";
+import { getDict, type Lang } from "@/lib/eventPageI18n";
 import type { EventRow } from "@/lib/types";
 import RegisterForm from "./RegisterForm";
 import {
@@ -94,10 +93,8 @@ export async function generateMetadata({
 
 export default async function PublicEventPage({
   params,
-  searchParams,
 }: {
   params: { slug: string };
-  searchParams: { lang?: string };
 }) {
   let event = await getPublicEvent(params.slug);
   let adminPreview = false;
@@ -115,9 +112,8 @@ export default async function PublicEventPage({
   }
   if (!event) notFound();
 
-  const lang: Lang = pickLang(searchParams.lang, headers().get("accept-language"));
+  const lang: Lang = "en";
   const t = getDict(lang);
-  const dir = lang === "ar" ? "rtl" : "ltr";
 
   const [[{ count: confirmedCount }], recent, [organizer], pastEvents] = await Promise.all([
     sql`
@@ -172,25 +168,14 @@ export default async function PublicEventPage({
     ? t.going(confirmedCount)
     : t.beFirst;
 
-  const langToggleHref = `/e/${event.slug}?lang=${lang === "ar" ? "en" : "ar"}`;
-
   return (
     <main
-      dir={dir}
-      lang={lang}
       className="event-page min-h-screen bg-paper pb-28 text-ink dark:bg-[#101116] dark:text-paper md:pb-16"
     >
       {/* Top bar */}
-      <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
+      <nav className="mx-auto flex max-w-5xl items-center px-4 py-4 sm:px-6">
         <Link href="/" className="font-display text-lg font-semibold">
           Hey<span className="text-stub-500">Ticket</span>
-        </Link>
-        <Link
-          href={langToggleHref}
-          className="rounded-full border border-ink/15 px-3 py-1 text-xs font-semibold text-ink/60 hover:border-ink/40 dark:border-white/15 dark:text-paper/60"
-          hrefLang={lang === "ar" ? "en" : "ar"}
-        >
-          {t.language}
         </Link>
       </nav>
 
@@ -291,7 +276,7 @@ export default async function PublicEventPage({
 
           {firstNames.length > 0 && (
             <div className="mt-5 flex items-center gap-3">
-              <div className="flex -space-x-2 rtl:space-x-reverse">
+              <div className="flex -space-x-2">
                 {firstNames.map((n, i) => (
                   <Avatar key={i} name={n} />
                 ))}
@@ -476,7 +461,7 @@ export default async function PublicEventPage({
                     {pastEvents.map((p) => (
                       <li key={p.slug}>
                         <Link
-                          href={`/e/${p.slug}${lang === "ar" ? "?lang=ar" : ""}`}
+                          href={`/e/${p.slug}`}
                           className="flex items-center gap-3 rounded-lg p-1 hover:bg-ink/5 dark:hover:bg-white/5"
                         >
                           {p.cover_image_url ? (
@@ -495,7 +480,7 @@ export default async function PublicEventPage({
                               {p.title}
                             </span>
                             <span className="block text-xs text-ink/50 dark:text-paper/50">
-                              {new Date(p.starts_at).toLocaleDateString(lang === "ar" ? "ar" : "en-US", {
+                              {new Date(p.starts_at).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",

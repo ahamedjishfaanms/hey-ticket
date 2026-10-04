@@ -10,7 +10,8 @@ import {
   type CalendarEvent,
 } from "@/lib/calendar";
 
-const localeOf = (lang: Lang) => (lang === "ar" ? "ar" : "en-US");
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const localeOf = (_lang: Lang) => "en-US";
 
 function formatWhen(iso: string, lang: Lang, timeZone?: string) {
   const d = new Date(iso);

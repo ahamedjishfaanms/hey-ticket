@@ -1,8 +1,7 @@
-// UI strings for the public event page. Event content itself (title,
-// description…) is written by the organizer and rendered with dir="auto",
-// so Arabic content displays right-to-left in either UI language.
+// UI strings for the public event page, kept in one place so wording
+// is easy to change.
 
-export type Lang = "en" | "ar";
+export type Lang = "en";
 
 const en = {
   inPerson: "In person",
@@ -73,86 +72,11 @@ const en = {
   cancel: "Cancel",
   previewBanner: "Admin preview — this event is not visible to the public.",
   attendees: "Attendees",
-  language: "العربية",
-};
-
-const ar: typeof en = {
-  inPerson: "حضوري",
-  online: "فعالية عبر الإنترنت",
-  onlineVia: "عبر الإنترنت",
-  free: "مجاني",
-  getTicket: "احصل على تذكرة",
-  requestToJoin: "اطلب الانضمام",
-  joinWaitlist: "انضم لقائمة الانتظار",
-  soldOut: "نفدت التذاكر",
-  eventEnded: "انتهت هذه الفعالية",
-  seePhotos: "شاهد الصور",
-  spotsLeft: (n) => (n === 1 ? "بقي مقعد واحد" : `بقي ${n} مقاعد`),
-  going: (n) => (n === 1 ? "شخص واحد سيحضر" : `${n} أشخاص سيحضرون`),
-  goingNames: (names, others) =>
-    others > 0
-      ? `${names.join("، ")} و${others} آخرون سيحضرون`
-      : `${names.join("، ")} سيحضرون`,
-  beFirst: "كن أول من يسجّل",
-  yourTime: "بتوقيتك",
-  eventTime: "توقيت الفعالية",
-  openInMaps: "افتح في خرائط Google",
-  getDirections: "احصل على الاتجاهات",
-  about: "عن الفعالية",
-  readMore: "اقرأ المزيد",
-  showLess: "عرض أقل",
-  agenda: "جدول الأعمال",
-  speakers: "المتحدثون والمضيفون",
-  location: "الموقع",
-  directions: "الاتجاهات ومواقف السيارات",
-  hostedBy: "يستضيفها",
-  contactOrganizer: "تواصل مع المنظّم",
-  pastEvents: "فعاليات سابقة لهذا المنظّم",
-  faq: "الأسئلة الشائعة",
-  reportEvent: "الإبلاغ عن هذه الفعالية",
-  approvalNote: "يراجع المضيف كل طلب قبل إرسال التذكرة.",
-  reserveSpot: "احجز مقعدك",
-  fullName: "الاسم الكامل",
-  email: "البريد الإلكتروني",
-  submitting: "جارٍ الإرسال…",
-  required: "مطلوب",
-  noAccount: "لا حاجة لإنشاء حساب.",
-  youreIn: "تم تسجيلك!",
-  waitlisted: "أنت في قائمة الانتظار",
-  requestSent: "تم إرسال الطلب",
-  checkEmail: (e) => `أرسلنا تذكرتك أيضًا إلى ${e}.`,
-  checkEmailPending: (e) => `يحتاج المضيف إلى الموافقة على طلبك — تحقق من ${e}.`,
-  showAtDoor: "أظهر رمز QR هذا عند الدخول",
-  viewTicket: "افتح التذكرة كاملة",
-  addToCalendar: "أضف إلى التقويم",
-  share: "مشاركة",
-  shareWithFriends: "ادعُ أصدقاءك",
-  copyLink: "نسخ الرابط",
-  copied: "تم النسخ!",
-  startsIn: "تبدأ",
-  happeningNow: "تقام الآن",
-  send: "إرسال",
-  sending: "جارٍ الإرسال…",
-  yourMessage: "رسالتك",
-  messageSent: "تم إرسال الرسالة — سيرد المنظّم عبر البريد الإلكتروني.",
-  reportReason: "لماذا تبلّغ عن هذه الفعالية؟",
-  reportDetails: "أي تفاصيل إضافية؟ (اختياري)",
-  yourEmailOptional: "بريدك الإلكتروني (اختياري)",
-  reportThanks: "شكرًا — سيراجع فريقنا هذه الفعالية.",
-  cancel: "إلغاء",
-  previewBanner: "معاينة المشرف — هذه الفعالية غير مرئية للعامة.",
-  attendees: "الحضور",
-  language: "English",
 };
 
 export type Dict = typeof en;
 
-export function getDict(lang: Lang): Dict {
-  return lang === "ar" ? ar : en;
-}
-
-export function pickLang(param: string | undefined, acceptLanguage: string | null): Lang {
-  if (param === "ar" || param === "en") return param;
-  const first = (acceptLanguage || "").split(",")[0]?.trim().toLowerCase() || "";
-  return first.startsWith("ar") ? "ar" : "en";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function getDict(_lang: Lang = "en"): Dict {
+  return en;
 }
