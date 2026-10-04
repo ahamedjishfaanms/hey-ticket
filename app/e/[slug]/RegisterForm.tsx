@@ -2,19 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { CustomFieldDef, CustomFieldResponses } from "@/lib/types";
 
 export default function RegisterForm({
   eventId,
   isFull,
   requiresApproval,
+  customFields = [],
 }: {
   eventId: string;
   isFull: boolean;
   requiresApproval: boolean;
+  customFields?: CustomFieldDef[];
 }) {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [responses, setResponses] = useState<CustomFieldResponses>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{
@@ -23,15 +27,30 @@ export default function RegisterForm({
     ticketId: string;
   } | null>(null);
 
+  function setResponse(id: string, value: string | boolean) {
+    setResponses((prev) => ({ ...prev, [id]: value }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    for (const f of customFields) {
+      if (f.required) {
+        const v = responses[f.id];
+        if (f.type === "checkbox" ? !v : !v || (typeof v === "string" && !v.trim())) {
+          setError(`"${f.label}" is required`);
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     setError(null);
 
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventId, fullName, email }),
+      body: JSON.stringify({ eventId, fullName, email, customFieldResponses: responses }),
     });
     const data = await res.json();
     setLoading(false);
@@ -103,6 +122,59 @@ export default function RegisterForm({
           placeholder="you@example.com"
         />
       </div>
+
+      {customFields.map((f) => (
+        <div key={f.id}>
+          <label className="mb-1 block text-sm font-medium">
+            {f.label}
+            {f.required && <span className="text-rose"> *</span>}
+          </label>
+          {f.type === "text" && (
+            <input
+              required={f.required}
+              className="input"
+              value={(responses[f.id] as string) || ""}
+              onChange={(e) => setResponse(f.id, e.target.value)}
+            />
+          )}
+          {f.type === "textarea" && (
+            <textarea
+              required={f.required}
+              className="input min-h-20"
+              value={(responses[f.id] as string) || ""}
+              onChange={(e) => setResponse(f.id, e.target.value)}
+            />
+          )}
+          {f.type === "select" && (
+            <select
+              required={f.required}
+              className="input"
+              value={(responses[f.id] as string) || ""}
+              onChange={(e) => setResponse(f.id, e.target.value)}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {(f.options || []).map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          )}
+          {f.type === "checkbox" && (
+            <label className="flex items-center gap-2 text-sm text-ink/70">
+              <input
+                type="checkbox"
+                checked={!!responses[f.id]}
+                onChange={(e) => setResponse(f.id, e.target.checked)}
+              />
+              Yes
+            </label>
+          )}
+        </div>
+      ))}
+
       {error && <p className="text-sm text-rose">{error}</p>}
       <button disabled={loading} className="btn-primary w-full">
         {loading

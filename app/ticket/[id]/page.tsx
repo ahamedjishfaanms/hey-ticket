@@ -10,17 +10,16 @@ import type { EventRow, RegistrationRow } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function TicketPage({ params }: { params: { id: string } }) {
-  const [registration] = (await sql`
-    select * from registrations where id = ${params.id}
-  `) as RegistrationRow[];
+  // One round trip instead of two.
+  const [row] = (await sql`
+    select to_jsonb(r) as registration, to_jsonb(e) as event
+    from registrations r
+    join events e on e.id = r.event_id
+    where r.id = ${params.id}
+  `) as { registration: RegistrationRow; event: EventRow }[];
 
-  if (!registration) notFound();
-
-  const [event] = (await sql`
-    select * from events where id = ${registration.event_id}
-  `) as EventRow[];
-
-  if (!event) notFound();
+  if (!row) notFound();
+  const { registration, event } = row;
 
   const when = new Date(event.starts_at).toLocaleString("en-US", {
     weekday: "short",

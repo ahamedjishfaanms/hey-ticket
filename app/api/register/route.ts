@@ -9,7 +9,7 @@ import {
 import type { EventRow } from "@/lib/types";
 
 export async function POST(request: Request) {
-  const { eventId, fullName, email } = await request.json();
+  const { eventId, fullName, email, customFieldResponses } = await request.json();
 
   if (!eventId || !fullName || !email) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -21,6 +21,20 @@ export async function POST(request: Request) {
 
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  // Server-side guard to match the client-side check — a required
+  // question left blank shouldn't be possible to submit even if someone
+  // bypasses the form.
+  const responses: Record<string, unknown> =
+    customFieldResponses && typeof customFieldResponses === "object" ? customFieldResponses : {};
+  for (const f of event.custom_fields || []) {
+    if (!f.required) continue;
+    const v = responses[f.id];
+    const missing = f.type === "checkbox" ? !v : v === undefined || v === null || v === "";
+    if (missing) {
+      return NextResponse.json({ error: `"${f.label}" is required` }, { status: 400 });
+    }
   }
 
   const [{ count: confirmedCount }] = (await sql`
@@ -37,10 +51,10 @@ export async function POST(request: Request) {
   let registration;
   try {
     [registration] = await sql`
-      insert into registrations (event_id, full_name, email, status, ticket_code)
+      insert into registrations (event_id, full_name, email, status, ticket_code, custom_field_responses)
       values (
         ${eventId}, ${fullName}, ${email.toLowerCase().trim()},
-        ${status}, ${generateTicketCode()}
+        ${status}, ${generateTicketCode()}, ${JSON.stringify(responses)}
       )
       returning *
     `;

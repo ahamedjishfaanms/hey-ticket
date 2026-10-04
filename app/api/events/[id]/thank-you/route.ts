@@ -3,14 +3,28 @@ import { auth } from "@clerk/nextjs/server";
 import { sql } from "@/lib/db";
 import { getManageableEvent } from "@/lib/access";
 import { sendThankYouEmail } from "@/lib/email";
-import type { RegistrationRow } from "@/lib/types";
+import type { EventRow, RegistrationRow } from "@/lib/types";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-// Bulk-sends the post-event thank-you email. Audience is either every
-// confirmed/waitlisted registration, or only people who were actually
-// checked in at the door. Skips anyone already sent one, so re-running
-// this is safe (e.g. after new check-ins trickle in).
+// A registration only gets a working certificate link if it's actually
+// eligible right now — sending the link to someone who isn't eligible
+// yet just produces a dead "not available" page when they click it.
+function isCertificateEligible(event: EventRow, reg: RegistrationRow) {
+  if (event.certificate_mode === "off") return false;
+  if (!event.signer1_name || !event.signer1_signature_url) return false;
+  if (event.certificate_mode === "attendance") return !!reg.checked_in_at;
+  return reg.status === "confirmed" || reg.status === "waitlisted";
+}
+
+// Bulk-sends post-event email. Audience is either every confirmed/
+// waitlisted registration, or only people who were actually checked in
+// at the door. Skips anyone already sent one, so re-running this is safe
+// (e.g. after new check-ins trickle in). What actually goes in the email
+// — the thank-you message, the gallery link, the certificate link — is
+// independently toggleable, so a host can send a "your certificate is
+// ready" email on its own, separately from a general thank-you blast, or
+// combine them into one.
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
@@ -31,6 +45,12 @@ export async function POST(
   const galleryUrl: string | null = body.galleryUrl?.trim() || event.gallery_url || null;
   const message: string | null = body.message?.trim() || event.thank_you_message || null;
 
+  // Default every toggle on, so existing callers (before this toggle UI
+  // existed) keep their old behavior.
+  const sendMessage = body.sendMessage !== false;
+  const sendGallery = body.sendGallery !== false;
+  const sendCertificate = body.sendCertificate !== false;
+
   const requireCheckedIn = audience === "checked_in_only";
 
   const registrations = (await sql`
@@ -42,14 +62,30 @@ export async function POST(
   `) as RegistrationRow[];
 
   let sent = 0;
+  let skippedNoContent = 0;
   const failures: string[] = [];
 
   for (const reg of registrations) {
     const certificateUrl =
-      event.certificate_mode !== "off" ? `${APP_URL}/certificate/${reg.id}` : null;
+      sendCertificate && isCertificateEligible(event, reg)
+        ? `${APP_URL}/certificate/${reg.id}`
+        : null;
+    const emailMessage = sendMessage ? message : null;
+    const emailGalleryUrl = sendGallery ? galleryUrl : null;
+
+    // Nothing to say — skip rather than send a blank "thanks" email with
+    // no content and no link.
+    if (!emailMessage && !emailGalleryUrl && !certificateUrl) {
+      skippedNoContent++;
+      continue;
+    }
 
     try {
-      await sendThankYouEmail(event, reg, { galleryUrl, message, certificateUrl });
+      await sendThankYouEmail(event, reg, {
+        galleryUrl: emailGalleryUrl,
+        message: emailMessage,
+        certificateUrl,
+      });
       await sql`update registrations set thank_you_sent_at = now() where id = ${reg.id}`;
       sent++;
     } catch (err) {
@@ -69,5 +105,10 @@ export async function POST(
     `;
   }
 
-  return NextResponse.json({ sent, failed: failures.length, total: registrations.length });
+  return NextResponse.json({
+    sent,
+    failed: failures.length,
+    skippedNoContent,
+    total: registrations.length,
+  });
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { sql } from "@/lib/db";
 import { ensureProfile } from "@/lib/profile";
+import { sanitizeCustomFields } from "@/lib/customFields";
 
 function slugify(title: string) {
   return (
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
     timezone,
     coverImageUrl,
     requireApproval,
+    customFields,
   } = body;
 
   if (!title || !startsAt) {
@@ -43,11 +45,13 @@ export async function POST(request: Request) {
   }
 
   const slug = slugify(title);
+  const cleanCustomFields = sanitizeCustomFields(customFields);
 
   const [event] = await sql`
     insert into events (
       organizer_id, slug, title, description, location, is_online, meeting_url,
-      starts_at, ends_at, timezone, capacity, cover_image_url, require_approval
+      starts_at, ends_at, timezone, capacity, cover_image_url, require_approval,
+      custom_fields
     ) values (
       ${userId}, ${slug}, ${title}, ${description || null},
       ${isOnline ? null : location || null}, ${Boolean(isOnline)},
@@ -57,7 +61,8 @@ export async function POST(request: Request) {
       ${timezone || "UTC"},
       ${capacity ? Number(capacity) : null},
       ${coverImageUrl || null},
-      ${Boolean(requireApproval)}
+      ${Boolean(requireApproval)},
+      ${JSON.stringify(cleanCustomFields)}
     )
     returning *
   `;

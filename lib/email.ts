@@ -216,13 +216,23 @@ export async function sendThankYouEmail(
       : "",
   ].join("");
 
+  // When this email carries nothing but a certificate link (no thank-you
+  // message, no gallery), lead with the certificate rather than a generic
+  // "thanks" — this is what a standalone "your certificate is ready"
+  // send looks like.
+  const certificateOnly = !!opts.certificateUrl && !opts.message && !opts.galleryUrl;
+
   return resend.emails.send({
     from: FROM,
     to: reg.email,
-    subject: `Thank you for joining ${event.title}`,
+    subject: certificateOnly
+      ? `Your certificate for ${event.title} is ready`
+      : `Thank you for joining ${event.title}`,
     html: baseTemplate({
-      heading: "Thanks for being there 🎉",
-      body: `Hi ${reg.full_name.split(" ")[0]}, thank you for joining <strong>${event.title}</strong> — it wouldn't have been the same without you.`,
+      heading: certificateOnly ? "Your certificate is ready 🎓" : "Thanks for being there 🎉",
+      body: certificateOnly
+        ? `Hi ${reg.full_name.split(" ")[0]}, your certificate for <strong>${event.title}</strong> is ready to view and download.`
+        : `Hi ${reg.full_name.split(" ")[0]}, thank you for joining <strong>${event.title}</strong> — it wouldn't have been the same without you.`,
       ticketCard: extras || undefined,
       ctaUrl: opts.certificateUrl || undefined,
       ctaLabel: opts.certificateUrl ? "View your certificate" : undefined,

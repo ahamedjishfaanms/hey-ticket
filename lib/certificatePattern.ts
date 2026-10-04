@@ -1,7 +1,9 @@
-// Deterministic geometric background for certificates. Seeded by the
-// certificate's own serial (the ticket code), so every certificate gets
-// a distinct pattern, but reloading the same certificate always
-// reproduces the exact same one — it's derived, not stored.
+// Deterministic geometric + watermark background for certificates. Seeded
+// by the certificate's own serial (the ticket code), so every certificate
+// gets a distinct pattern, but reloading the same certificate always
+// reproduces the exact same one — it's derived, not stored. A tiled
+// micro-text watermark of the participant's name and the event name is
+// layered underneath the geometric shapes, like a banknote or a diploma.
 
 function hashSeed(str: string): number {
   let h = 1779033703 ^ str.length;
@@ -23,16 +25,26 @@ function mulberry32(seed: number) {
   };
 }
 
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 const PALETTE = ["#EF8B0C", "#3B6E5C", "#D64550", "#14151A", "#C96A05"];
 
 export function generateCertificatePatternSvg(
   seedStr: string,
+  participantName: string,
+  eventTitle: string,
   width = 900,
   height = 640
 ): string {
   const rand = mulberry32(hashSeed(seedStr));
   const shapes: string[] = [];
-  const count = 52;
+  const count = 46;
 
   for (let i = 0; i < count; i++) {
     const cx = rand() * width;
@@ -60,11 +72,34 @@ export function generateCertificatePatternSvg(
     }
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${shapes.join("")}</svg>`;
+  // Watermark: the participant's name and the event name, tiled
+  // diagonally in faint micro-text across the whole certificate —
+  // fading into the paper like a banknote or diploma watermark. Built
+  // as an SVG <pattern> so it tiles cheaply regardless of canvas size.
+  const watermarkText = escapeXml(
+    `${participantName.toUpperCase()}  •  ${eventTitle.toUpperCase()}  •  `
+  );
+  const tileW = 360;
+  const tileH = 70;
+  const watermark = `
+    <defs>
+      <pattern id="wm" width="${tileW}" height="${tileH}" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
+        <text x="0" y="${tileH * 0.65}" font-family="ui-monospace, 'JetBrains Mono', monospace" font-size="11" letter-spacing="2" fill="#14151A" opacity="0.05">${watermarkText}</text>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#wm)" />`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${watermark}${shapes.join("")}</svg>`;
 }
 
-export function certificatePatternDataUri(seedStr: string, width = 900, height = 640): string {
-  const svg = generateCertificatePatternSvg(seedStr, width, height);
+export function certificatePatternDataUri(
+  seedStr: string,
+  participantName: string,
+  eventTitle: string,
+  width = 900,
+  height = 640
+): string {
+  const svg = generateCertificatePatternSvg(seedStr, participantName, eventTitle, width, height);
   const base64 =
     typeof window === "undefined"
       ? Buffer.from(svg).toString("base64")

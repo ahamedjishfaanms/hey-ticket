@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ImageUploader from "@/components/ImageUploader";
+import DateTimePicker from "@/components/DateTimePicker";
+import CustomFieldsBuilder from "@/components/CustomFieldsBuilder";
+import type { CustomFieldDef } from "@/lib/types";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -15,6 +18,7 @@ export default function NewEventPage() {
   const [capacity, setCapacity] = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [requireApproval, setRequireApproval] = useState(false);
+  const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +40,7 @@ export default function NewEventPage() {
         capacity,
         coverImageUrl,
         requireApproval,
+        customFields,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
     });
@@ -86,22 +91,11 @@ export default function NewEventPage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="mb-1 block text-sm font-medium">Starts</label>
-            <input
-              required
-              type="datetime-local"
-              className="input"
-              value={startsAt}
-              onChange={(e) => setStartsAt(e.target.value)}
-            />
+            <DateTimePicker value={startsAt} onChange={setStartsAt} />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Ends (optional)</label>
-            <input
-              type="datetime-local"
-              className="input"
-              value={endsAt}
-              onChange={(e) => setEndsAt(e.target.value)}
-            />
+            <DateTimePicker value={endsAt} onChange={setEndsAt} />
           </div>
         </div>
 
@@ -178,6 +172,18 @@ export default function NewEventPage() {
                 </span>
               </span>
             </label>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium">Registration form questions</p>
+          <p className="mt-1 text-xs text-ink/50">
+            Everyone always gives their name and email. Add more questions here —
+            short answer, paragraph, multiple choice, or checkbox — like a lightweight
+            Google Form built into your event page.
+          </p>
+          <div className="mt-3">
+            <CustomFieldsBuilder fields={customFields} onChange={setCustomFields} />
           </div>
         </div>
 

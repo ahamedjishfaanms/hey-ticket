@@ -85,6 +85,7 @@ export default async function PublicEventPage({
             eventId={event.id}
             isFull={isFull}
             requiresApproval={event.require_approval}
+            customFields={event.custom_fields || []}
           />
         </div>
       </div>

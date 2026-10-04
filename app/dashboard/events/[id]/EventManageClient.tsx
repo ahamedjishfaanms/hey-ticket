@@ -1,9 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import ImageUploader from "@/components/ImageUploader";
-import type { CertificateMode, EventCollaboratorRow, EventRow, RegistrationRow } from "@/lib/types";
+import CustomFieldsBuilder from "@/components/CustomFieldsBuilder";
+import type {
+  CertificateMode,
+  CustomFieldDef,
+  EventCollaboratorRow,
+  EventRow,
+  RegistrationRow,
+} from "@/lib/types";
 
 export default function EventManageClient({
   event,
@@ -25,6 +32,7 @@ export default function EventManageClient({
   const [cohostBusy, setCohostBusy] = useState(false);
   const [cohostError, setCohostError] = useState<string | null>(null);
   const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Branding & certificates
   const [logoUrl, setLogoUrl] = useState(event.logo_url || "");
@@ -43,8 +51,16 @@ export default function EventManageClient({
   const [galleryUrl, setGalleryUrl] = useState(event.gallery_url || "");
   const [thankYouMessage, setThankYouMessage] = useState(event.thank_you_message || "");
   const [audience, setAudience] = useState<"all_confirmed" | "checked_in_only">("all_confirmed");
+  const [sendMessage, setSendMessage] = useState(true);
+  const [sendGallery, setSendGallery] = useState(true);
+  const [sendCertificate, setSendCertificate] = useState(true);
   const [thankYouBusy, setThankYouBusy] = useState(false);
   const [thankYouResult, setThankYouResult] = useState<string | null>(null);
+
+  // Registration form
+  const [customFields, setCustomFields] = useState<CustomFieldDef[]>(event.custom_fields || []);
+  const [formBusy, setFormBusy] = useState(false);
+  const [formSaved, setFormSaved] = useState(false);
 
   const eventUrl = useMemo(
     () => `${typeof window !== "undefined" ? window.location.origin : ""}/e/${event.slug}`,
@@ -149,7 +165,14 @@ export default function EventManageClient({
     const res = await fetch(`/api/events/${event.id}/thank-you`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ audience, galleryUrl, message: thankYouMessage }),
+      body: JSON.stringify({
+        audience,
+        galleryUrl,
+        message: thankYouMessage,
+        sendMessage,
+        sendGallery,
+        sendCertificate,
+      }),
     });
     const data = await res.json();
     setThankYouBusy(false);
@@ -167,12 +190,30 @@ export default function EventManageClient({
     setThankYouResult(
       data.total === 0
         ? "Everyone in this audience has already been thanked."
-        : `Sent ${data.sent} of ${data.total}${data.failed ? ` (${data.failed} failed)` : ""}.`
+        : `Sent ${data.sent} of ${data.total}${data.failed ? ` (${data.failed} failed)` : ""}${
+            data.skippedNoContent ? ` — ${data.skippedNoContent} skipped (nothing eligible to send)` : ""
+          }.`
     );
   }
 
+  async function saveCustomFields() {
+    setFormBusy(true);
+    setFormSaved(false);
+    const res = await fetch(`/api/events/${event.id}/form`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customFields }),
+    });
+    setFormBusy(false);
+    if (res.ok) {
+      setFormSaved(true);
+      setTimeout(() => setFormSaved(false), 2500);
+    }
+  }
+
   function exportCsv() {
-    const header = "Name,Email,Status,Checked in,Ticket code\n";
+    const extraHeaders = (event.custom_fields || []).map((f) => f.label);
+    const header = ["Name", "Email", "Status", "Checked in", "Ticket code", ...extraHeaders].join(",") + "\n";
     const rows = registrations
       .map((r) =>
         [
@@ -181,6 +222,10 @@ export default function EventManageClient({
           r.status,
           r.checked_in_at ? "yes" : "no",
           r.ticket_code,
+          ...(event.custom_fields || []).map((f) => {
+            const v = r.custom_field_responses?.[f.id];
+            return v === true ? "yes" : v === false || v == null ? "" : String(v);
+          }),
         ]
           .map((v) => `"${String(v).replace(/"/g, '""')}"`)
           .join(",")
@@ -305,29 +350,67 @@ export default function EventManageClient({
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Checked in</th>
                 <th className="px-4 py-3">Ticket</th>
+                {event.custom_fields && event.custom_fields.length > 0 && (
+                  <th className="px-4 py-3"></th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {registrations.map((r) => (
-                <tr key={r.id} className="border-t border-ink/5">
-                  <td className="px-4 py-3">{r.full_name}</td>
-                  <td className="px-4 py-3 text-ink/60">{r.email}</td>
-                  <td className="px-4 py-3 capitalize">{r.status}</td>
-                  <td className="px-4 py-3">
-                    {r.checked_in_at ? (
-                      <span className="text-cord">
-                        {new Date(r.checked_in_at).toLocaleTimeString([], {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    ) : (
-                      <span className="text-ink/30">—</span>
+              {registrations.map((r) => {
+                const hasAnswers = event.custom_fields && event.custom_fields.length > 0;
+                const isExpanded = expandedId === r.id;
+                return (
+                  <Fragment key={r.id}>
+                    <tr className="border-t border-ink/5">
+                      <td className="px-4 py-3">{r.full_name}</td>
+                      <td className="px-4 py-3 text-ink/60">{r.email}</td>
+                      <td className="px-4 py-3 capitalize">{r.status}</td>
+                      <td className="px-4 py-3">
+                        {r.checked_in_at ? (
+                          <span className="text-cord">
+                            {new Date(r.checked_in_at).toLocaleTimeString([], {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        ) : (
+                          <span className="text-ink/30">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs">{r.ticket_code}</td>
+                      {hasAnswers && (
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                            className="text-xs font-semibold text-stub-600"
+                          >
+                            {isExpanded ? "Hide" : "Answers"}
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                    {hasAnswers && isExpanded && (
+                      <tr className="border-t border-ink/5 bg-stub-50">
+                        <td colSpan={6} className="px-4 py-3">
+                          <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-3">
+                            {event.custom_fields.map((f) => {
+                              const v = r.custom_field_responses?.[f.id];
+                              return (
+                                <div key={f.id}>
+                                  <dt className="text-ink/40">{f.label}</dt>
+                                  <dd className="font-medium">
+                                    {v === true ? "Yes" : v === false || v == null || v === "" ? "—" : String(v)}
+                                  </dd>
+                                </div>
+                              );
+                            })}
+                          </dl>
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs">{r.ticket_code}</td>
-                </tr>
-              ))}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -376,6 +459,23 @@ export default function EventManageClient({
           {cohostError && <p className="mt-2 text-sm text-rose">{cohostError}</p>}
         </div>
       )}
+
+      <div className="mt-10">
+        <h2 className="font-display text-xl">Registration form</h2>
+        <p className="mt-1 text-sm text-ink/50">
+          Everyone always gives their name and email. Add more questions here —
+          short answer, paragraph, multiple choice, or checkbox.
+        </p>
+        <div className="mt-4">
+          <CustomFieldsBuilder fields={customFields} onChange={setCustomFields} />
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={saveCustomFields} disabled={formBusy} className="btn-primary">
+            {formBusy ? "Saving…" : "Save form"}
+          </button>
+          {formSaved && <span className="text-sm text-cord">Saved ✓</span>}
+        </div>
+      </div>
 
       <div className="mt-10">
         <h2 className="font-display text-xl">Branding &amp; certificates</h2>
@@ -487,8 +587,9 @@ export default function EventManageClient({
       <div className="mt-10">
         <h2 className="font-display text-xl">Post-event</h2>
         <p className="mt-1 text-sm text-ink/50">
-          Send a thank-you email once the event wraps — with an optional photo link and,
-          if certificates are turned on, a link to each attendee's certificate.
+          One send, three independent pieces — pick any combination: a thank-you note, a
+          photo link, and/or each attendee's certificate link. Turn off the first two and
+          leave only "Certificate" on to send certificates on their own.
         </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -541,9 +642,56 @@ export default function EventManageClient({
           />
         </div>
 
+        <div className="mt-4">
+          <label className="mb-2 block text-sm font-medium">Include in this send</label>
+          <div className="flex flex-wrap gap-2">
+            <label
+              className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold ${
+                sendMessage ? "border-cord bg-cord/10 text-cord" : "border-ink/15 text-ink/60"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={sendMessage}
+                onChange={(e) => setSendMessage(e.target.checked)}
+                className="sr-only"
+              />
+              Thank-you message
+            </label>
+            <label
+              className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold ${
+                sendGallery ? "border-cord bg-cord/10 text-cord" : "border-ink/15 text-ink/60"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={sendGallery}
+                onChange={(e) => setSendGallery(e.target.checked)}
+                className="sr-only"
+              />
+              Photo link
+            </label>
+            {event.certificate_mode !== "off" && (
+              <label
+                className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold ${
+                  sendCertificate ? "border-cord bg-cord/10 text-cord" : "border-ink/15 text-ink/60"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={sendCertificate}
+                  onChange={(e) => setSendCertificate(e.target.checked)}
+                  className="sr-only"
+                />
+                Certificate (only to those eligible now)
+              </label>
+            )}
+          </div>
+        </div>
+
         <div className="mt-4 flex items-center gap-3">
           <button onClick={sendThankYous} disabled={thankYouBusy} className="btn-primary">
-            {thankYouBusy ? "Sending…" : "Send thank-you emails"}
+            {thankYouBusy ? "Sending…" : "Send emails"}
           </button>
           {thankYouResult && <span className="text-sm text-ink/60">{thankYouResult}</span>}
         </div>

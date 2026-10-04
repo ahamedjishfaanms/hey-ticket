@@ -15,17 +15,18 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 export const dynamic = "force-dynamic";
 
 export default async function CertificatePage({ params }: { params: { id: string } }) {
-  const [registration] = (await sql`
-    select * from registrations where id = ${params.id}
-  `) as RegistrationRow[];
+  // One round trip instead of two — registration and event fetched
+  // together, since the previous version's sequential queries were part
+  // of what made this page feel slow to load.
+  const [row] = (await sql`
+    select to_jsonb(r) as registration, to_jsonb(e) as event
+    from registrations r
+    join events e on e.id = r.event_id
+    where r.id = ${params.id}
+  `) as { registration: RegistrationRow; event: EventRow }[];
 
-  if (!registration) notFound();
-
-  const [event] = (await sql`
-    select * from events where id = ${registration.event_id}
-  `) as EventRow[];
-
-  if (!event) notFound();
+  if (!row) notFound();
+  const { registration, event } = row;
 
   const eligible =
     event.certificate_mode === "participation"
@@ -65,7 +66,11 @@ export default async function CertificatePage({ params }: { params: { id: string
 
   const verifyUrl = `${APP_URL}/certificate/${registration.id}`;
   const qr = await ticketQrDataUrl(verifyUrl);
-  const background = certificatePatternDataUri(registration.ticket_code);
+  const background = certificatePatternDataUri(
+    registration.ticket_code,
+    registration.full_name,
+    event.title
+  );
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-ink px-6 py-16">

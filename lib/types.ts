@@ -2,6 +2,19 @@ export type RegistrationStatus = "pending" | "confirmed" | "waitlisted" | "cance
 
 export type CertificateMode = "off" | "participation" | "attendance";
 
+export type CustomFieldType = "text" | "textarea" | "select" | "checkbox";
+
+export interface CustomFieldDef {
+  id: string;
+  label: string;
+  type: CustomFieldType;
+  required: boolean;
+  // Only used when type === "select".
+  options?: string[];
+}
+
+export type CustomFieldResponses = Record<string, string | boolean>;
+
 export interface EventRow {
   id: string;
   organizer_id: string;
@@ -29,6 +42,7 @@ export interface EventRow {
   signer2_signature_url: string | null;
   gallery_url: string | null;
   thank_you_message: string | null;
+  custom_fields: CustomFieldDef[];
   created_at: string;
 }
 
@@ -46,6 +60,7 @@ export interface RegistrationRow {
   reviewed_at: string | null;
   reviewed_by: string | null;
   thank_you_sent_at: string | null;
+  custom_field_responses: CustomFieldResponses;
   created_at: string;
 }
 
