@@ -16,7 +16,8 @@ export async function POST(request: Request) {
   }
 
   const [event] = (await sql`
-    select * from events where id = ${eventId} and is_published = true
+    select * from events
+    where id = ${eventId} and is_published = true and moderation_status = 'active'
   `) as EventRow[];
 
   if (!event) {

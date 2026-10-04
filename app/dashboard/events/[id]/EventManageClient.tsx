@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import ImageUploader from "@/components/ImageUploader";
 import CustomFieldsBuilder from "@/components/CustomFieldsBuilder";
+import EventPageDetailsEditor from "@/components/EventPageDetailsEditor";
 import type {
   CertificateMode,
   CustomFieldDef,
@@ -270,13 +271,28 @@ export default function EventManageClient({
           >
             Open scanner
           </Link>
-          <button onClick={togglePublish} disabled={busy} className="btn-primary">
+          <button
+            onClick={togglePublish}
+            disabled={busy || (event.moderation_status === "suspended" && !isPublished)}
+            className="btn-primary"
+          >
             {isPublished ? "Unpublish" : "Publish event"}
           </button>
         </div>
       </div>
 
-      {isPublished && (
+      {event.moderation_status === "suspended" && (
+        <div className="mt-4 rounded-lg border border-rose/30 bg-rose/5 px-4 py-3 text-sm">
+          <p className="font-semibold text-rose">This event was suspended by the HeyTicket team.</p>
+          <p className="mt-1 text-ink/70">
+            It&apos;s hidden from the public and closed to new registrations.
+            {event.moderation_note ? ` Reason: ${event.moderation_note}` : ""} Reply to the
+            suspension email if you think this is a mistake.
+          </p>
+        </div>
+      )}
+
+      {isPublished && event.moderation_status !== "suspended" && (
         <div className="mt-4 flex items-center gap-3 rounded-lg bg-cord/10 px-4 py-3">
           <code className="flex-1 truncate font-mono text-sm text-cord">{eventUrl}</code>
           <button onClick={copyLink} className="text-sm font-semibold text-cord">
@@ -459,6 +475,8 @@ export default function EventManageClient({
           {cohostError && <p className="mt-2 text-sm text-rose">{cohostError}</p>}
         </div>
       )}
+
+      <EventPageDetailsEditor event={event} />
 
       <div className="mt-10">
         <h2 className="font-display text-xl">Registration form</h2>

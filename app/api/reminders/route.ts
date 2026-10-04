@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const now = new Date();
 
   const events = (await sql`
-    select * from events where is_published = true and starts_at > ${now.toISOString()}
+    select * from events where is_published = true and moderation_status = 'active' and starts_at > ${now.toISOString()}
   `) as EventRow[];
 
   let sent = 0;

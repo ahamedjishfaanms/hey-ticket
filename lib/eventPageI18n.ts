@@ -1,0 +1,158 @@
+// UI strings for the public event page. Event content itself (title,
+// description…) is written by the organizer and rendered with dir="auto",
+// so Arabic content displays right-to-left in either UI language.
+
+export type Lang = "en" | "ar";
+
+const en = {
+  inPerson: "In person",
+  online: "Online event",
+  onlineVia: "Online",
+  free: "Free",
+  getTicket: "Get ticket",
+  requestToJoin: "Request to join",
+  joinWaitlist: "Join waitlist",
+  soldOut: "Sold out",
+  eventEnded: "This event has ended",
+  seePhotos: "See photos",
+  spotsLeft: (n: number) => (n === 1 ? "1 spot left" : `${n} spots left`),
+  going: (n: number) => (n === 1 ? "1 person going" : `${n} people going`),
+  goingNames: (names: string[], others: number) =>
+    others > 0
+      ? `${names.join(", ")} and ${others} other${others === 1 ? "" : "s"} are going`
+      : names.length === 1
+      ? `${names[0]} is going`
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} are going`,
+  beFirst: "Be the first to register",
+  yourTime: "your time",
+  eventTime: "Event time",
+  openInMaps: "Open in Google Maps",
+  getDirections: "Get directions",
+  about: "About this event",
+  readMore: "Read more",
+  showLess: "Show less",
+  agenda: "Agenda",
+  speakers: "Speakers & hosts",
+  location: "Location",
+  directions: "Directions & parking",
+  hostedBy: "Hosted by",
+  contactOrganizer: "Contact organizer",
+  pastEvents: "Past events by this host",
+  faq: "FAQ",
+  reportEvent: "Report this event",
+  approvalNote: "The host reviews every request before sending a ticket.",
+  reserveSpot: "Reserve your spot",
+  fullName: "Full name",
+  email: "Email",
+  submitting: "Submitting…",
+  required: "is required",
+  noAccount: "No account needed.",
+  youreIn: "You're in!",
+  waitlisted: "You're on the waitlist",
+  requestSent: "Request sent",
+  checkEmail: (e: string) => `We've also emailed your ticket to ${e}.`,
+  checkEmailPending: (e: string) =>
+    `The host needs to approve your request — check ${e} once they do.`,
+  showAtDoor: "Show this QR code at the door",
+  viewTicket: "Open full ticket",
+  addToCalendar: "Add to calendar",
+  share: "Share",
+  shareWithFriends: "Invite friends",
+  copyLink: "Copy link",
+  copied: "Copied!",
+  startsIn: "Starts",
+  happeningNow: "Happening now",
+  send: "Send",
+  sending: "Sending…",
+  yourMessage: "Your message",
+  messageSent: "Message sent — the organizer will reply by email.",
+  reportReason: "Why are you reporting this event?",
+  reportDetails: "Anything else we should know? (optional)",
+  yourEmailOptional: "Your email (optional)",
+  reportThanks: "Thanks — our team will review this event.",
+  cancel: "Cancel",
+  previewBanner: "Admin preview — this event is not visible to the public.",
+  attendees: "Attendees",
+  language: "العربية",
+};
+
+const ar: typeof en = {
+  inPerson: "حضوري",
+  online: "فعالية عبر الإنترنت",
+  onlineVia: "عبر الإنترنت",
+  free: "مجاني",
+  getTicket: "احصل على تذكرة",
+  requestToJoin: "اطلب الانضمام",
+  joinWaitlist: "انضم لقائمة الانتظار",
+  soldOut: "نفدت التذاكر",
+  eventEnded: "انتهت هذه الفعالية",
+  seePhotos: "شاهد الصور",
+  spotsLeft: (n) => (n === 1 ? "بقي مقعد واحد" : `بقي ${n} مقاعد`),
+  going: (n) => (n === 1 ? "شخص واحد سيحضر" : `${n} أشخاص سيحضرون`),
+  goingNames: (names, others) =>
+    others > 0
+      ? `${names.join("، ")} و${others} آخرون سيحضرون`
+      : `${names.join("، ")} سيحضرون`,
+  beFirst: "كن أول من يسجّل",
+  yourTime: "بتوقيتك",
+  eventTime: "توقيت الفعالية",
+  openInMaps: "افتح في خرائط Google",
+  getDirections: "احصل على الاتجاهات",
+  about: "عن الفعالية",
+  readMore: "اقرأ المزيد",
+  showLess: "عرض أقل",
+  agenda: "جدول الأعمال",
+  speakers: "المتحدثون والمضيفون",
+  location: "الموقع",
+  directions: "الاتجاهات ومواقف السيارات",
+  hostedBy: "يستضيفها",
+  contactOrganizer: "تواصل مع المنظّم",
+  pastEvents: "فعاليات سابقة لهذا المنظّم",
+  faq: "الأسئلة الشائعة",
+  reportEvent: "الإبلاغ عن هذه الفعالية",
+  approvalNote: "يراجع المضيف كل طلب قبل إرسال التذكرة.",
+  reserveSpot: "احجز مقعدك",
+  fullName: "الاسم الكامل",
+  email: "البريد الإلكتروني",
+  submitting: "جارٍ الإرسال…",
+  required: "مطلوب",
+  noAccount: "لا حاجة لإنشاء حساب.",
+  youreIn: "تم تسجيلك!",
+  waitlisted: "أنت في قائمة الانتظار",
+  requestSent: "تم إرسال الطلب",
+  checkEmail: (e) => `أرسلنا تذكرتك أيضًا إلى ${e}.`,
+  checkEmailPending: (e) => `يحتاج المضيف إلى الموافقة على طلبك — تحقق من ${e}.`,
+  showAtDoor: "أظهر رمز QR هذا عند الدخول",
+  viewTicket: "افتح التذكرة كاملة",
+  addToCalendar: "أضف إلى التقويم",
+  share: "مشاركة",
+  shareWithFriends: "ادعُ أصدقاءك",
+  copyLink: "نسخ الرابط",
+  copied: "تم النسخ!",
+  startsIn: "تبدأ",
+  happeningNow: "تقام الآن",
+  send: "إرسال",
+  sending: "جارٍ الإرسال…",
+  yourMessage: "رسالتك",
+  messageSent: "تم إرسال الرسالة — سيرد المنظّم عبر البريد الإلكتروني.",
+  reportReason: "لماذا تبلّغ عن هذه الفعالية؟",
+  reportDetails: "أي تفاصيل إضافية؟ (اختياري)",
+  yourEmailOptional: "بريدك الإلكتروني (اختياري)",
+  reportThanks: "شكرًا — سيراجع فريقنا هذه الفعالية.",
+  cancel: "إلغاء",
+  previewBanner: "معاينة المشرف — هذه الفعالية غير مرئية للعامة.",
+  attendees: "الحضور",
+  language: "English",
+};
+
+export type Dict = typeof en;
+
+export function getDict(lang: Lang): Dict {
+  return lang === "ar" ? ar : en;
+}
+
+export function pickLang(param: string | undefined, acceptLanguage: string | null): Lang {
+  if (param === "ar" || param === "en") return param;
+  const first = (acceptLanguage || "").split(",")[0]?.trim().toLowerCase() || "";
+  return first.startsWith("ar") ? "ar" : "en";
+}
