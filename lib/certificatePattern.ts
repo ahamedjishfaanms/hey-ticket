@@ -1,9 +1,12 @@
 // Deterministic geometric + watermark background for certificates. Seeded
 // by the certificate's own serial (the ticket code), so every certificate
 // gets a distinct pattern, but reloading the same certificate always
-// reproduces the exact same one — it's derived, not stored. A tiled
-// micro-text watermark of the participant's name and the event name is
-// layered underneath the geometric shapes, like a banknote or a diploma.
+// reproduces the exact same one — it's derived, not stored. The
+// watermark is the participant's name, the event name, and the
+// certificate's own serial number, flowing along wavy lines across the
+// page — like the flowing guilloché lines on currency or a diploma,
+// rather than plain diagonally-tiled text. The geometric shapes on top
+// are unchanged.
 
 function hashSeed(str: string): number {
   let h = 1779033703 ^ str.length;
@@ -72,24 +75,54 @@ export function generateCertificatePatternSvg(
     }
   }
 
-  // Watermark: the participant's name and the event name, tiled
-  // diagonally in faint micro-text across the whole certificate —
-  // fading into the paper like a banknote or diploma watermark. Built
-  // as an SVG <pattern> so it tiles cheaply regardless of canvas size.
+  // Watermark: name, event, and serial repeated and set along gently
+  // undulating wave paths stacked across the page — a flowing, banknote-
+  // style watermark rather than flat diagonal tiling. Each row's wave is
+  // its own <path>, and the text rides it via <textPath>, so the letters
+  // themselves curve up and down with the line.
   const watermarkText = escapeXml(
-    `${participantName.toUpperCase()}  •  ${eventTitle.toUpperCase()}  •  `
+    `${participantName.toUpperCase()}  •  ${eventTitle.toUpperCase()}  •  ${seedStr}  •  `
   );
-  const tileW = 360;
-  const tileH = 70;
-  const watermark = `
-    <defs>
-      <pattern id="wm" width="${tileW}" height="${tileH}" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
-        <text x="0" y="${tileH * 0.65}" font-family="ui-monospace, 'JetBrains Mono', monospace" font-size="11" letter-spacing="2" fill="#14151A" opacity="0.05">${watermarkText}</text>
-      </pattern>
-    </defs>
-    <rect width="100%" height="100%" fill="url(#wm)" />`;
+  // Tight row spacing, like ruled notebook paper, rather than wide gaps
+  // between lines — and a smaller, quieter font so it genuinely reads as
+  // background texture sitting behind the geometric shapes, not a
+  // second layer of content competing with them.
+  const rowSpacing = 17;
+  const rows = Math.ceil(height / rowSpacing) + 1;
+  const wavePaths: string[] = [];
+  const waveTexts: string[] = [];
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${watermark}${shapes.join("")}</svg>`;
+  for (let row = 0; row < rows; row++) {
+    const baseY = row * rowSpacing + rowSpacing / 2;
+    const amplitude = 2.5 + rand() * 3;
+    const waveLength = 90 + rand() * 50;
+    const phaseFlip = row % 2 === 0 ? 1 : -1;
+
+    let d = `M-20,${baseY.toFixed(1)}`;
+    let dir = phaseFlip;
+    for (let x = -20; x < width + waveLength; x += waveLength) {
+      const midX = x + waveLength / 2;
+      const endX = x + waveLength;
+      d += ` Q${midX.toFixed(1)},${(baseY + dir * amplitude).toFixed(1)} ${endX.toFixed(1)},${baseY.toFixed(1)}`;
+      dir *= -1;
+    }
+
+    const id = `wmwave${row}`;
+    wavePaths.push(`<path id="${id}" d="${d}" fill="none" />`);
+
+    // Repeat the text enough times to fill the row at this font size,
+    // with a per-row offset so rows don't all start aligned — it reads
+    // less like a grid and more like a continuous flowing pattern.
+    const repeated = watermarkText.repeat(8);
+    const startOffset = (rand() * 200).toFixed(0);
+    waveTexts.push(
+      `<text font-family="ui-monospace, 'JetBrains Mono', monospace" font-size="7" letter-spacing="1.2" fill="#14151A" opacity="0.045"><textPath href="#${id}" xlink:href="#${id}" startOffset="${startOffset}">${repeated}</textPath></text>`
+    );
+  }
+
+  const watermark = `<defs>${wavePaths.join("")}</defs>${waveTexts.join("")}`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${watermark}${shapes.join("")}</svg>`;
 }
 
 export function certificatePatternDataUri(
