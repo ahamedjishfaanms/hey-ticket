@@ -8,6 +8,14 @@ export default function LandingPage() {
           Hey<span className="text-stub-500">Ticket</span>
         </div>
         <nav className="flex items-center gap-4 text-sm font-medium">
+          <a
+            href="https://buymeacoffee.com/ahamedjishfaan"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="focus-ring hidden items-center gap-2 rounded-full bg-[#FFDD00] px-4 py-2 font-semibold text-ink shadow-sm transition hover:bg-[#FFE94D] sm:inline-flex"
+          >
+            <span aria-hidden>☕</span> Buy me a coffee
+          </a>
           <Link href="/sign-in" className="focus-ring rounded px-3 py-2 hover:text-stub-600">
             Log in
           </Link>
@@ -75,7 +83,15 @@ export default function LandingPage() {
     Hey Ticket — built for people who'd rather be running the event than
     running a spreadsheet.
   </p>
-  <p className="mt-2 text-xs text-ink/30">A Beingtechy project</p>
+  <a
+    href="https://buymeacoffee.com/ahamedjishfaan"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="focus-ring mt-4 inline-flex items-center gap-2 rounded-full bg-[#FFDD00] px-4 py-2 text-sm font-semibold text-ink shadow-sm transition hover:bg-[#FFE94D]"
+  >
+    <span aria-hidden>☕</span> Buy me a coffee
+  </a>
+  <p className="mt-4 text-xs text-ink/30">A Beingtechy project</p>
 </footer>
     </main>
   );
