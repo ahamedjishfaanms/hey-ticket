@@ -113,14 +113,14 @@ export default function CertificateCardClient({
         <button
           onClick={() => download("png")}
           disabled={downloading !== null}
-          className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold hover:border-ink/40 disabled:opacity-50"
+          className="rounded-full border border-paper/30 px-4 py-2 text-sm font-semibold text-paper hover:border-paper/60 disabled:opacity-50"
         >
           {downloading === "png" ? "Preparing…" : "Download PNG"}
         </button>
         <button
           onClick={() => download("pdf")}
           disabled={downloading !== null}
-          className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold hover:border-ink/40 disabled:opacity-50"
+          className="rounded-full border border-paper/30 px-4 py-2 text-sm font-semibold text-paper hover:border-paper/60 disabled:opacity-50"
         >
           {downloading === "pdf" ? "Preparing…" : "Download PDF"}
         </button>
