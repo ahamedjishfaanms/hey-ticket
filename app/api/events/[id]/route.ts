@@ -24,6 +24,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
+  if (body.is_published && existing.moderation_status === "suspended") {
+    return NextResponse.json(
+      { error: "This event was suspended by the HeyTicket team and can't be published." },
+      { status: 403 }
+    );
+  }
+
   const [event] = await sql`
     update events
     set is_published = ${body.is_published}

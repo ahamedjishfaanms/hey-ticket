@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ensureProfile } from "@/lib/profile";
 import SignOutButton from "@/components/SignOutButton";
+import { getAdminUserId } from "@/lib/admin";
 
 export default async function DashboardLayout({
   children,
@@ -11,6 +12,7 @@ export default async function DashboardLayout({
   // this layout ever renders. This just mirrors our Clerk user into our
   // own `profiles` table so events.organizer_id has something to reference.
   await ensureProfile();
+  const isAdmin = Boolean(await getAdminUserId());
 
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -19,6 +21,14 @@ export default async function DashboardLayout({
           Hey<span className="text-stub-500">Ticket</span>
         </Link>
         <div className="flex items-center gap-4">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="rounded-full bg-rose/10 px-3 py-1.5 text-sm font-semibold text-rose hover:bg-rose/15"
+            >
+              Admin
+            </Link>
+          )}
           <Link href="/dashboard/events/new" className="btn-primary text-sm">
             New event
           </Link>

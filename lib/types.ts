@@ -43,6 +43,46 @@ export interface EventRow {
   gallery_url: string | null;
   thank_you_message: string | null;
   custom_fields: CustomFieldDef[];
+  moderation_status: ModerationStatus;
+  moderation_note: string | null;
+  moderated_at: string | null;
+  moderated_by: string | null;
+  agenda: AgendaItem[];
+  speakers: SpeakerItem[];
+  faqs: FaqItem[];
+  venue_notes: string | null;
+  created_at: string;
+}
+
+export type ModerationStatus = "active" | "suspended";
+
+export interface AgendaItem {
+  id: string;
+  time: string;
+  title: string;
+}
+
+export interface SpeakerItem {
+  id: string;
+  name: string;
+  role: string;
+  photo_url: string;
+}
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface EventReportRow {
+  id: string;
+  event_id: string;
+  reason: string;
+  details: string | null;
+  reporter_email: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
   created_at: string;
 }
 

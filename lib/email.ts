@@ -255,3 +255,73 @@ export async function sendCohostInviteEmail(event: EventRow, cohostEmail: string
     }),
   });
 }
+
+function esc(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// Tells the organizer a platform admin suspended their event.
+export async function sendEventSuspendedEmail(
+  event: EventRow,
+  organizerEmail: string,
+  note: string | null
+) {
+  return resend.emails.send({
+    from: FROM,
+    to: organizerEmail,
+    subject: `Your event "${event.title}" has been suspended`,
+    html: baseTemplate({
+      heading: "Your event was suspended",
+      body: `<strong>${esc(event.title)}</strong> has been suspended by the HeyTicket team and is no longer visible to the public or open for registration.${
+        note ? `<br/><br/><strong>Reason:</strong> ${esc(note)}` : ""
+      }<br/><br/>If you believe this is a mistake, reply to this email.`,
+    }),
+  });
+}
+
+// Lets an attendee message the organizer without exposing the
+// organizer's email address on the public page. Reply-To is the visitor.
+export async function sendContactOrganizerEmail(
+  event: EventRow,
+  organizerEmail: string,
+  from: { name: string; email: string; message: string }
+) {
+  return resend.emails.send({
+    from: FROM,
+    to: organizerEmail,
+    replyTo: from.email,
+    subject: `Question about ${event.title} from ${from.name}`,
+    html: baseTemplate({
+      heading: "New message from an attendee",
+      body: `<strong>${esc(from.name)}</strong> (${esc(from.email)}) wrote about <strong>${esc(
+        event.title
+      )}</strong>:<br/><br/>${esc(from.message).replace(/\n/g, "<br/>")}<br/><br/>Just hit reply to answer them.`,
+    }),
+  });
+}
+
+// Alerts platform admins that someone reported an event.
+export async function sendAdminReportEmail(
+  event: EventRow,
+  adminEmail: string,
+  reason: string,
+  details: string | null
+) {
+  return resend.emails.send({
+    from: FROM,
+    to: adminEmail,
+    subject: `Event reported: ${event.title}`,
+    html: baseTemplate({
+      heading: "An event was reported 🚩",
+      body: `<strong>${esc(event.title)}</strong> was reported for: <strong>${esc(reason)}</strong>.${
+        details ? `<br/><br/>${esc(details).replace(/\n/g, "<br/>")}` : ""
+      }`,
+      ctaUrl: `${APP_URL}/admin?filter=reported`,
+      ctaLabel: "Review in admin",
+    }),
+  });
+}

@@ -61,3 +61,31 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Public event page: dark mode follows the visitor's system setting.
+   Shared component classes (.input etc.) are light-only elsewhere, so
+   they're re-themed here, scoped to the event page. */
+@media (prefers-color-scheme: dark) {
+  .event-page .input {
+    background-color: #101116;
+    color: #f3efe6;
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+  .event-page .input::placeholder {
+    color: rgba(243, 239, 230, 0.35);
+  }
+  .event-page .btn-primary {
+    background-color: #fbf7ef;
+    color: #14151a;
+  }
+  .event-page .btn-primary:hover {
+    background-color: #f6a614;
+  }
+  .event-page .btn-secondary {
+    color: #f3efe6;
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+  .event-page iframe {
+    filter: invert(0.9) hue-rotate(180deg);
+  }
+}

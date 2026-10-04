@@ -91,10 +91,18 @@ function EventGroup({
             </div>
             <span
               className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                e.is_published ? "bg-cord/10 text-cord" : "bg-ink/5 text-ink/50"
+                e.moderation_status === "suspended"
+                  ? "bg-rose/10 text-rose"
+                  : e.is_published
+                  ? "bg-cord/10 text-cord"
+                  : "bg-ink/5 text-ink/50"
               }`}
             >
-              {e.is_published ? "Published" : "Draft"}
+              {e.moderation_status === "suspended"
+                ? "Suspended"
+                : e.is_published
+                ? "Published"
+                : "Draft"}
             </span>
           </Link>
         ))}

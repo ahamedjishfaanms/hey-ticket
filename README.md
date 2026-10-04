@@ -20,6 +20,9 @@ automatically, and check people in at the door with a camera scan.
 - **Confirmation & reminder emails** — sent via Resend, reminder timing configurable per event, delivered by an hourly Vercel Cron job
 - **Attendance / check-in** — camera-based QR scanner (or manual code entry) at `/dashboard/events/[id]/checkin`, live attendee list, CSV export
 
+- **Public event page** — cover, date in the visitor's own timezone, Google Maps link, spots left / who's going, countdown, sticky mobile "Get ticket" bar, one-step registration with instant QR + Add to Calendar + share, agenda, speakers, map, FAQ, organizer card, dark mode
+- **Admin moderation** — `/admin` lists every event from every organizer; suspend illegal/unsafe events (hidden, registration closed, organizer emailed), restore them, and review public "Report this event" flags
+
 ## 1. Create the Neon database
 
 1. Go to [neon.tech](https://neon.tech) → sign up free (no card) → **Create a project**.
@@ -93,6 +96,20 @@ git push -u origin main
    extra setup needed.
 5. Back in the Clerk dashboard, under **Domains**, add your production
    Vercel URL so Clerk allows auth from it.
+
+## Upgrading an existing database
+
+Run each migration in `db/` in order in the Neon SQL editor. The latest,
+`migration_005_admin_and_event_page.sql`, adds moderation, event reports,
+and the agenda / speakers / FAQ / venue-notes fields — **run it before
+deploying this version**, since the public page and registration now
+read those columns.
+
+## Admin access
+
+Anyone whose **verified** Clerk email is `ahamedjishfaan@gmail.com`, or is
+listed in the `ADMIN_EMAILS` env var (comma-separated), sees an **Admin**
+button in the dashboard and can open `/admin`. Everyone else gets a 404.
 
 ## How the pieces fit together
 
