@@ -3,6 +3,9 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { sql } from "@/lib/db";
 import type { EventRow } from "@/lib/types";
 import DashboardTabs from "@/components/DashboardTabs";
+import { eventEndsAt, formatInZone } from "@/lib/time";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardHome() {
   const { userId } = await auth();
@@ -18,8 +21,11 @@ export default async function DashboardHome() {
     order by e.starts_at asc
   `) as EventRow[];
 
-  const upcoming = rows.filter((e) => new Date(e.starts_at) >= new Date());
-  const past = rows.filter((e) => new Date(e.starts_at) < new Date());
+  // An event stays "upcoming" until it has ended, not just started.
+  const now = new Date();
+  const upcoming = rows.filter((e) => eventEndsAt(e) >= now);
+  // Most recent first — that's the one you're most likely looking for.
+  const past = rows.filter((e) => eventEndsAt(e) < now).reverse();
 
   return (
     <div>
@@ -72,27 +78,30 @@ function EventGroup({
           <Link
             key={e.id}
             href={`/dashboard/events/${e.id}`}
-            className={`focus-ring flex items-center justify-between rounded-xl border border-ink/10 bg-white px-5 py-4 transition-colors hover:border-stub-400 ${
+            className={`focus-ring flex items-center justify-between gap-3 rounded-xl border border-ink/10 bg-white px-5 py-4 transition-colors hover:border-stub-400 ${
               muted ? "opacity-60" : ""
             }`}
           >
-            <div>
-              <p className="font-display text-lg">{e.title}</p>
+            <div className="min-w-0">
+              <p className="truncate font-display text-lg">{e.title}</p>
               <p className="text-sm text-ink/50">
-                {new Date(e.starts_at).toLocaleString("en-US", {
+                {formatInZone(e.starts_at, e.timezone, {
                   weekday: "short",
                   month: "short",
                   day: "numeric",
                   hour: "numeric",
                   minute: "2-digit",
+                  timeZoneName: "short",
                 })}
-                {e.location ? ` · ${e.location}` : ""}
+                {e.is_online ? " · Online" : e.location ? ` · ${e.location}` : ""}
               </p>
             </div>
             <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
                 e.moderation_status === "suspended"
                   ? "bg-rose/10 text-rose"
+                  : muted
+                  ? "bg-ink/5 text-ink/50"
                   : e.is_published
                   ? "bg-cord/10 text-cord"
                   : "bg-ink/5 text-ink/50"
@@ -100,6 +109,8 @@ function EventGroup({
             >
               {e.moderation_status === "suspended"
                 ? "Suspended"
+                : muted
+                ? "Ended"
                 : e.is_published
                 ? "Published"
                 : "Draft"}

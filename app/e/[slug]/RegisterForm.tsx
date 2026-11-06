@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { CustomFieldDef, CustomFieldResponses } from "@/lib/types";
 import type { CalendarEvent } from "@/lib/calendar";
 import { getDict, type Lang } from "@/lib/eventPageI18n";
@@ -29,6 +30,7 @@ export default function RegisterForm({
   priceLabel: string;
 }) {
   const t = getDict(lang);
+  const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [responses, setResponses] = useState<CustomFieldResponses>({});
@@ -66,12 +68,15 @@ export default function RegisterForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ eventId, fullName, email, customFieldResponses: responses }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Something went wrong");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        setError(data?.error || "Something went wrong — please try again");
         return;
       }
       setDone({ waitlisted: data.waitlisted, pending: data.pending, ticketId: data.ticketId });
+      // Re-fetch the page so "spots left", the attendee avatars and the
+      // sticky "Get ticket" bar reflect this registration.
+      router.refresh();
     } catch {
       setError("Network error — please try again.");
     } finally {

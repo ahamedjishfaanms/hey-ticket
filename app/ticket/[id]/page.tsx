@@ -31,9 +31,10 @@ export default async function TicketPage({ params }: { params: { id: string } })
     timeZoneName: "short",
   });
 
-  // Pending/cancelled registrations don't get a scannable QR yet (or
-  // ever) — showing one would let someone in before the host decided.
-  const showQr = registration.status === "confirmed" || registration.status === "waitlisted";
+  // Only confirmed registrations get a scannable QR. Pending, waitlisted
+  // and cancelled ones are refused at the door, so showing a QR would
+  // only make people think they're in.
+  const showQr = registration.status === "confirmed";
   const qr = showQr ? await ticketQrDataUrl(registration.ticket_code) : null;
 
   const statusLabel =
@@ -47,7 +48,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
 
   const certificateEligible =
     event.certificate_mode === "participation"
-      ? registration.status === "confirmed" || registration.status === "waitlisted"
+      ? registration.status === "confirmed"
       : event.certificate_mode === "attendance"
       ? !!registration.checked_in_at
       : false;
@@ -60,6 +61,10 @@ export default async function TicketPage({ params }: { params: { id: string } })
           cover_image_url: event.cover_image_url,
           logo_url: event.logo_url,
           location: event.location,
+          is_online: event.is_online,
+          // The join link is only for people with a confirmed seat.
+          meeting_url: showQr ? event.meeting_url : null,
+          timezone: event.timezone,
         }}
         registration={{
           full_name: registration.full_name,

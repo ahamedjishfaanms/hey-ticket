@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { sql } from "@/lib/db";
 import { sendCohostInviteEmail } from "@/lib/email";
 import type { EventRow } from "@/lib/types";
+import { isEmail } from "@/lib/validation";
 
 // Only the original organizer can add/remove co-hosts — a co-host
 // shouldn't be able to invite further co-hosts or remove the owner.
@@ -15,9 +16,10 @@ export async function POST(
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const { email } = await request.json();
-  if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  const body = await request.json().catch(() => ({}));
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!isEmail(email)) {
+    return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 });
   }
 
   const [event] = (await sql`
@@ -28,7 +30,12 @@ export async function POST(
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedEmail = email;
+
+  const [owner] = await sql`select email from profiles where id = ${userId}`;
+  if (owner?.email && String(owner.email).toLowerCase() === normalizedEmail) {
+    return NextResponse.json({ error: "That's you — you already own this event" }, { status: 400 });
+  }
 
   let collaborator;
   try {

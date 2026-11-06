@@ -9,6 +9,7 @@ export default function TicketCardClient({
   registration,
   qr,
   statusLabel,
+  when,
   certificateUrl,
 }: {
   event: {
@@ -16,6 +17,10 @@ export default function TicketCardClient({
     cover_image_url: string | null;
     logo_url: string | null;
     location: string | null;
+    is_online?: boolean;
+    // Only passed for confirmed tickets.
+    meeting_url?: string | null;
+    timezone?: string;
   };
   registration: {
     full_name: string;
@@ -90,9 +95,39 @@ export default function TicketCardClient({
               />
             )}
           </div>
-          {event.location && <p className="mt-1 text-sm text-ink/60">{event.location}</p>}
+          {when && <p className="mt-2 text-sm font-medium text-ink/80">{when}</p>}
+          {event.is_online ? (
+            event.meeting_url ? (
+              <a
+                href={event.meeting_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-block text-sm font-semibold text-stub-600 underline"
+              >
+                Join online ↗
+              </a>
+            ) : (
+              <p className="mt-1 text-sm text-ink/60">Online event</p>
+            )
+          ) : (
+            event.location && <p className="mt-1 text-sm text-ink/60">{event.location}</p>
+          )}
 
-          {registration.status === "pending" ? (
+          {registration.status === "waitlisted" ? (
+            <div className="mt-6 rounded-xl bg-stub-50 p-6 text-center">
+              <p className="text-3xl">⏳</p>
+              <p className="mt-2 text-sm text-ink/70">
+                You&apos;re on the waitlist — this isn&apos;t a ticket yet. If a spot opens
+                up and the host confirms you, your QR code will appear here.
+              </p>
+            </div>
+          ) : registration.status === "cancelled" ? (
+            <div className="mt-6 rounded-xl bg-rose/5 p-6 text-center">
+              <p className="mt-2 text-sm text-ink/70">
+                This registration was cancelled, so there&apos;s no ticket to show.
+              </p>
+            </div>
+          ) : registration.status === "pending" ? (
             <div className="mt-6 rounded-xl bg-stub-50 p-6 text-center">
               <p className="text-3xl">👀</p>
               <p className="mt-2 text-sm text-ink/70">
@@ -125,9 +160,10 @@ export default function TicketCardClient({
           {registration.checked_in_at && (
             <p className="mt-4 rounded-lg bg-cord/10 px-3 py-2 text-center text-xs font-semibold text-cord">
               Checked in at{" "}
-              {new Date(registration.checked_in_at).toLocaleTimeString([], {
+              {new Date(registration.checked_in_at).toLocaleTimeString("en-US", {
                 hour: "numeric",
                 minute: "2-digit",
+                timeZone: event.timezone || "UTC",
               })}
             </p>
           )}

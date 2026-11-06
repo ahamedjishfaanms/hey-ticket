@@ -49,7 +49,7 @@ function baseTemplate(opts: {
 function ticketCardHtml(event: EventRow, reg: RegistrationRow) {
   const qrUrl = `${APP_URL}/api/tickets/${reg.id}/qr`;
   const cover = event.cover_image_url
-    ? `<img src="${event.cover_image_url}" alt="" width="432" style="display:block; width:100%; max-width:432px; height:140px; object-fit:cover; border-radius:12px 12px 0 0;" />`
+    ? `<img src="${esc(event.cover_image_url)}" alt="" width="432" style="display:block; width:100%; max-width:432px; height:140px; object-fit:cover; border-radius:12px 12px 0 0;" />`
     : "";
 
   return `
@@ -58,9 +58,9 @@ function ticketCardHtml(event: EventRow, reg: RegistrationRow) {
     <tr>
       <td style="padding:20px 20px 0;">
         <p style="margin:0; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#C96A05; font-weight:700;">Admit one</p>
-        <p style="margin:4px 0 0; font-size:19px; font-weight:700; color:#14151A;">${event.title}</p>
+        <p style="margin:4px 0 0; font-size:19px; font-weight:700; color:#14151A;">${esc(event.title)}</p>
         <p style="margin:4px 0 0; font-size:13px; color:#6B6C72;">${formatWhen(event)}</p>
-        ${event.location ? `<p style="margin:2px 0 0; font-size:13px; color:#6B6C72;">${event.location}</p>` : ""}
+        ${event.location ? `<p style="margin:2px 0 0; font-size:13px; color:#6B6C72;">${esc(event.location)}</p>` : ""}
       </td>
     </tr>
     <tr>
@@ -78,7 +78,7 @@ function ticketCardHtml(event: EventRow, reg: RegistrationRow) {
       <td style="padding:0 20px 20px; border-top:1px dashed #E7E0D0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
           <tr>
-            <td style="font-size:11px; color:#8A8B90;">Ticket holder<br/><span style="font-size:14px; color:#14151A; font-weight:600;">${reg.full_name}</span></td>
+            <td style="font-size:11px; color:#8A8B90;">Ticket holder<br/><span style="font-size:14px; color:#14151A; font-weight:600;">${esc(reg.full_name)}</span></td>
             <td style="font-size:11px; color:#8A8B90; text-align:right;">Code<br/><span style="font-size:13px; color:#14151A; font-family:monospace;">${reg.ticket_code}</span></td>
           </tr>
         </table>
@@ -97,7 +97,7 @@ export async function sendConfirmationEmail(event: EventRow, reg: RegistrationRo
       subject: `You're on the waitlist for ${event.title}`,
       html: baseTemplate({
         heading: "You're on the waitlist",
-        body: `Hi ${reg.full_name.split(" ")[0]}, you're on the waitlist for <strong>${event.title}</strong> — we'll email you if a spot opens up.`,
+        body: `Hi ${esc(reg.full_name.split(" ")[0])}, you're on the waitlist for <strong>${esc(event.title)}</strong> — we'll email you if a spot opens up.`,
         ctaUrl: ticketUrl,
         ctaLabel: "View status",
       }),
@@ -110,7 +110,7 @@ export async function sendConfirmationEmail(event: EventRow, reg: RegistrationRo
     subject: `Your ticket for ${event.title}`,
     html: baseTemplate({
       heading: "You're going! 🎟️",
-      body: `Hi ${reg.full_name.split(" ")[0]}, you're in — here's your ticket for <strong>${event.title}</strong>.`,
+      body: `Hi ${esc(reg.full_name.split(" ")[0])}, you're in — here's your ticket for <strong>${esc(event.title)}</strong>.`,
       ticketCard: ticketCardHtml(event, reg),
       ctaUrl: ticketUrl,
       ctaLabel: "Open full ticket",
@@ -127,7 +127,7 @@ export async function sendPendingReceivedEmail(event: EventRow, reg: Registratio
     subject: `Request received for ${event.title}`,
     html: baseTemplate({
       heading: "Your request is in 👀",
-      body: `Hi ${reg.full_name.split(" ")[0]}, your registration for <strong>${event.title}</strong> (${formatWhen(event)}) needs the host's approval. We'll email you the moment it's confirmed.`,
+      body: `Hi ${esc(reg.full_name.split(" ")[0])}, your registration for <strong>${esc(event.title)}</strong> (${formatWhen(event)}) needs the host's approval. We'll email you the moment it's confirmed.`,
     }),
   });
 }
@@ -146,7 +146,7 @@ export async function sendHostNewPendingEmail(
     subject: `New registration request for ${event.title}`,
     html: baseTemplate({
       heading: "Someone wants in",
-      body: `${reg.full_name} (${reg.email}) just registered for <strong>${event.title}</strong> and is waiting on your approval.`,
+      body: `${esc(reg.full_name)} (${esc(reg.email)}) just registered for <strong>${esc(event.title)}</strong> and is waiting on your approval.`,
       ctaUrl: manageUrl,
       ctaLabel: "Review request",
     }),
@@ -163,7 +163,7 @@ export async function sendApprovedEmail(event: EventRow, reg: RegistrationRow) {
     subject: `You're approved for ${event.title}`,
     html: baseTemplate({
       heading: "You're in! 🎟️",
-      body: `Hi ${reg.full_name.split(" ")[0]}, the host approved your request for <strong>${event.title}</strong>. Here's your ticket.`,
+      body: `Hi ${esc(reg.full_name.split(" ")[0])}, the host approved your request for <strong>${esc(event.title)}</strong>. Here's your ticket.`,
       ticketCard: ticketCardHtml(event, reg),
       ctaUrl: ticketUrl,
       ctaLabel: "Open full ticket",
@@ -179,7 +179,7 @@ export async function sendRejectedEmail(event: EventRow, reg: RegistrationRow) {
     subject: `Update on your request for ${event.title}`,
     html: baseTemplate({
       heading: "Request declined",
-      body: `Hi ${reg.full_name.split(" ")[0]}, unfortunately the host wasn't able to approve your request for <strong>${event.title}</strong> this time.`,
+      body: `Hi ${esc(reg.full_name.split(" ")[0])}, unfortunately the host wasn't able to approve your request for <strong>${esc(event.title)}</strong> this time.`,
     }),
   });
 }
@@ -192,7 +192,7 @@ export async function sendReminderEmail(event: EventRow, reg: RegistrationRow) {
     subject: `Reminder: ${event.title} is coming up`,
     html: baseTemplate({
       heading: "See you soon 👋",
-      body: `Hi ${reg.full_name.split(" ")[0]}, just a reminder that <strong>${event.title}</strong> starts ${formatWhen(event)}${event.location ? ` at ${event.location}` : ""}. Bring this ticket for fast check-in.`,
+      body: `Hi ${esc(reg.full_name.split(" ")[0])}, just a reminder that <strong>${esc(event.title)}</strong> starts ${formatWhen(event)}${event.location ? ` at ${esc(event.location)}` : ""}. Bring this ticket for fast check-in.`,
       ticketCard: ticketCardHtml(event, reg),
       ctaUrl: ticketUrl,
       ctaLabel: "Open full ticket",
@@ -209,10 +209,10 @@ export async function sendThankYouEmail(
 ) {
   const extras = [
     opts.message
-      ? `<p style="margin:16px 0 0; font-size:15px; line-height:1.6; color:#33343A;">${opts.message}</p>`
+      ? `<p style="margin:16px 0 0; font-size:15px; line-height:1.6; color:#33343A;">${esc(opts.message).replace(/\n/g, "<br/>")}</p>`
       : "",
     opts.galleryUrl
-      ? `<p style="margin:16px 0 0;"><a href="${opts.galleryUrl}" style="color:#C96A05; font-weight:600; text-decoration:none;">View event photos →</a></p>`
+      ? `<p style="margin:16px 0 0;"><a href="${esc(opts.galleryUrl)}" style="color:#C96A05; font-weight:600; text-decoration:none;">View event photos →</a></p>`
       : "",
   ].join("");
 
@@ -231,8 +231,8 @@ export async function sendThankYouEmail(
     html: baseTemplate({
       heading: certificateOnly ? "Your certificate is ready 🎓" : "Thanks for being there 🎉",
       body: certificateOnly
-        ? `Hi ${reg.full_name.split(" ")[0]}, your certificate for <strong>${event.title}</strong> is ready to view and download.`
-        : `Hi ${reg.full_name.split(" ")[0]}, thank you for joining <strong>${event.title}</strong> — it wouldn't have been the same without you.`,
+        ? `Hi ${esc(reg.full_name.split(" ")[0])}, your certificate for <strong>${esc(event.title)}</strong> is ready to view and download.`
+        : `Hi ${esc(reg.full_name.split(" ")[0])}, thank you for joining <strong>${esc(event.title)}</strong> — it wouldn't have been the same without you.`,
       ticketCard: extras || undefined,
       ctaUrl: opts.certificateUrl || undefined,
       ctaLabel: opts.certificateUrl ? "View your certificate" : undefined,
@@ -249,15 +249,15 @@ export async function sendCohostInviteEmail(event: EventRow, cohostEmail: string
     subject: `You've been added as a co-host for ${event.title}`,
     html: baseTemplate({
       heading: "You're co-hosting 🤝",
-      body: `You've been added as a co-host for <strong>${event.title}</strong> (${formatWhen(event)}). Sign in to Hey Ticket with this email address to manage registrations and check people in.`,
+      body: `You've been added as a co-host for <strong>${esc(event.title)}</strong> (${formatWhen(event)}). Sign in to Hey Ticket with this email address to manage registrations and check people in.`,
       ctaUrl: manageUrl,
       ctaLabel: "Open event dashboard",
     }),
   });
 }
 
-function esc(s: string) {
-  return s
+function esc(s: string | null | undefined) {
+  return String(s ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

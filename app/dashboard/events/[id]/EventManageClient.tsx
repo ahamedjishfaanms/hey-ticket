@@ -2,6 +2,8 @@
 
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { csvCell } from "@/lib/validation";
 import ImageUploader from "@/components/ImageUploader";
 import CustomFieldsBuilder from "@/components/CustomFieldsBuilder";
 import EventPageDetailsEditor from "@/components/EventPageDetailsEditor";
@@ -24,7 +26,10 @@ export default function EventManageClient({
   initialRegistrations: RegistrationRow[];
   initialCollaborators: EventCollaboratorRow[];
 }) {
+  const router = useRouter();
   const [isPublished, setIsPublished] = useState(event.is_published);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [registrations, setRegistrations] = useState(initialRegistrations);
   const [collaborators, setCollaborators] = useState(initialCollaborators);
   const [copied, setCopied] = useState(false);
@@ -73,15 +78,42 @@ export default function EventManageClient({
   const waitlisted = registrations.filter((r) => r.status === "waitlisted");
   const checkedIn = registrations.filter((r) => r.checked_in_at);
 
+  const tz = event.timezone || "UTC";
+  const hasStarted = new Date(event.starts_at).getTime() <= Date.now();
+
   async function togglePublish() {
     setBusy(true);
+    setPublishError(null);
     const res = await fetch(`/api/events/${event.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_published: !isPublished }),
     });
     setBusy(false);
-    if (res.ok) setIsPublished(!isPublished);
+    if (res.ok) {
+      setIsPublished(!isPublished);
+      router.refresh();
+    } else {
+      const data = await res.json().catch(() => null);
+      setPublishError(data?.error || "Couldn't update — try again");
+    }
+  }
+
+  async function deleteEvent() {
+    const ok = window.confirm(
+      `Delete "${event.title}" permanently?\n\nThis removes the event page and all ${registrations.length} registration(s). It can't be undone.`
+    );
+    if (!ok) return;
+    setDeleting(true);
+    const res = await fetch(`/api/events/${event.id}`, { method: "DELETE" });
+    if (res.ok) {
+      router.push("/dashboard");
+      router.refresh();
+    } else {
+      setDeleting(false);
+      const data = await res.json().catch(() => null);
+      setPublishError(data?.error || "Couldn't delete the event — try again");
+    }
   }
 
   async function copyLink() {
@@ -91,6 +123,19 @@ export default function EventManageClient({
   }
 
   async function decide(registrationId: string, decision: "approve" | "reject") {
+    const reg = registrations.find((r) => r.id === registrationId);
+    // Declining is final (the person can't re-register with that email),
+    // and rows shift after each decision, so ask before declining.
+    if (
+      decision === "reject" &&
+      !window.confirm(
+        reg?.status === "waitlisted"
+          ? `Remove ${reg.full_name} from the waitlist? They'll be emailed.`
+          : `Decline ${reg?.full_name ?? "this request"}? They'll be emailed, and this can't be undone.`
+      )
+    ) {
+      return;
+    }
     setDecidingId(registrationId);
     const res = await fetch(`/api/registrations/${registrationId}/decision`, {
       method: "POST",
@@ -113,7 +158,7 @@ export default function EventManageClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: cohostEmail }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     setCohostBusy(false);
     if (!res.ok) {
       setCohostError(data.error || "Could not add co-host");
@@ -150,7 +195,7 @@ export default function EventManageClient({
         signer2SignatureUrl,
       }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     setBrandingBusy(false);
     if (!res.ok) {
       setBrandingError(data.error || "Could not save");
@@ -175,7 +220,7 @@ export default function EventManageClient({
         sendCertificate,
       }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     setThankYouBusy(false);
     if (!res.ok) {
       setThankYouResult(data.error || "Something went wrong");
@@ -214,13 +259,17 @@ export default function EventManageClient({
 
   function exportCsv() {
     const extraHeaders = (event.custom_fields || []).map((f) => f.label);
-    const header = ["Name", "Email", "Status", "Checked in", "Ticket code", ...extraHeaders].join(",") + "\n";
+    const header =
+      ["Name", "Email", "Status", "Registered", "Checked in", "Ticket code", ...extraHeaders]
+        .map(csvCell)
+        .join(",") + "\n";
     const rows = registrations
       .map((r) =>
         [
           r.full_name,
           r.email,
           r.status,
+          r.created_at ? new Date(r.created_at).toISOString() : "",
           r.checked_in_at ? "yes" : "no",
           r.ticket_code,
           ...(event.custom_fields || []).map((f) => {
@@ -228,11 +277,11 @@ export default function EventManageClient({
             return v === true ? "yes" : v === false || v == null ? "" : String(v);
           }),
         ]
-          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .map(csvCell)
           .join(",")
       )
       .join("\n");
-    const blob = new Blob([header + rows], { type: "text/csv" });
+    const blob = new Blob(["\uFEFF" + header + rows], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -255,16 +304,23 @@ export default function EventManageClient({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink/40">
-            {new Date(event.starts_at).toLocaleDateString("en-US", {
+            {new Date(event.starts_at).toLocaleString("en-US", {
               weekday: "short",
               month: "short",
               day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              timeZone: tz,
+              timeZoneName: "short",
             })}
             {role === "cohost" && " · You're a co-host"}
           </p>
           <h1 className="font-display text-3xl italic">{event.title}</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href={`/dashboard/events/${event.id}/edit`} className="btn-secondary">
+            Edit details
+          </Link>
           <Link
             href={`/dashboard/events/${event.id}/checkin`}
             className="btn-secondary"
@@ -280,6 +336,12 @@ export default function EventManageClient({
           </button>
         </div>
       </div>
+
+      {publishError && (
+        <p role="alert" className="mt-3 text-sm text-rose">
+          {publishError}
+        </p>
+      )}
 
       {event.moderation_status === "suspended" && (
         <div className="mt-4 rounded-lg border border-rose/30 bg-rose/5 px-4 py-3 text-sm">
@@ -315,7 +377,7 @@ export default function EventManageClient({
             {pending.map((r) => (
               <div
                 key={r.id}
-                className="flex items-center justify-between rounded-xl border border-stub-400/40 bg-stub-50 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stub-400/40 bg-stub-50 px-4 py-3"
               >
                 <div>
                   <p className="text-sm font-semibold">{r.full_name}</p>
@@ -343,6 +405,47 @@ export default function EventManageClient({
         </div>
       )}
 
+      {waitlisted.length > 0 && (
+        <div className="mt-10">
+          <h2 className="font-display text-xl">Waitlist</h2>
+          <p className="mt-1 text-sm text-ink/50">
+            {event.capacity != null
+              ? `${confirmed.length} of ${event.capacity} spots taken. `
+              : ""}
+            Confirm someone when a spot frees up — they&apos;ll get their ticket by email.
+          </p>
+          <div className="mt-4 space-y-2">
+            {waitlisted.map((r) => (
+              <div
+                key={r.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink/10 bg-white px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{r.full_name}</p>
+                  <p className="truncate text-xs text-ink/50">{r.email}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => decide(r.id, "reject")}
+                    disabled={decidingId === r.id}
+                    className="rounded-full border border-ink/15 px-3 py-1.5 text-xs font-semibold hover:border-rose hover:text-rose"
+                  >
+                    Remove
+                  </button>
+                  <button
+                    onClick={() => decide(r.id, "approve")}
+                    disabled={decidingId === r.id}
+                    className="rounded-full bg-cord px-3 py-1.5 text-xs font-semibold text-paper hover:bg-cord/80"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-10 flex items-center justify-between">
         <h2 className="font-display text-xl">Attendees</h2>
         {registrations.length > 0 && (
@@ -357,8 +460,8 @@ export default function EventManageClient({
           No registrations yet. Share your event link to start collecting them.
         </p>
       ) : (
-        <div className="mt-4 overflow-hidden rounded-xl border border-ink/10 bg-white">
-          <table className="w-full text-left text-sm">
+        <div className="mt-4 overflow-x-auto rounded-xl border border-ink/10 bg-white">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-ink/5 text-xs uppercase tracking-wide text-ink/50">
               <tr>
                 <th className="px-4 py-3">Name</th>
@@ -384,9 +487,10 @@ export default function EventManageClient({
                       <td className="px-4 py-3">
                         {r.checked_in_at ? (
                           <span className="text-cord">
-                            {new Date(r.checked_in_at).toLocaleTimeString([], {
+                            {new Date(r.checked_in_at).toLocaleTimeString("en-US", {
                               hour: "numeric",
                               minute: "2-digit",
+                              timeZone: tz,
                             })}
                           </span>
                         ) : (
@@ -614,6 +718,7 @@ export default function EventManageClient({
           <div>
             <label className="mb-1 block text-sm font-medium">Photo / gallery link (optional)</label>
             <input
+              type="url"
               value={galleryUrl}
               onChange={(e) => setGalleryUrl(e.target.value)}
               placeholder="https://..."
@@ -708,12 +813,36 @@ export default function EventManageClient({
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <button onClick={sendThankYous} disabled={thankYouBusy} className="btn-primary">
+          <button
+            onClick={sendThankYous}
+            disabled={thankYouBusy || !hasStarted}
+            className="btn-primary"
+          >
             {thankYouBusy ? "Sending…" : "Send emails"}
           </button>
+          {!hasStarted && (
+            <span className="text-sm text-ink/50">Available once the event has started.</span>
+          )}
           {thankYouResult && <span className="text-sm text-ink/60">{thankYouResult}</span>}
         </div>
       </div>
+
+      {role === "organizer" && (
+        <div className="mt-12 rounded-xl border border-rose/30 p-5">
+          <h2 className="font-display text-xl text-rose">Delete event</h2>
+          <p className="mt-1 text-sm text-ink/60">
+            Permanently removes the event page and every registration. This can&apos;t be undone —
+            unpublish instead if you only want to hide it.
+          </p>
+          <button
+            onClick={deleteEvent}
+            disabled={deleting}
+            className="mt-4 rounded-full border border-rose px-4 py-2 text-sm font-semibold text-rose hover:bg-rose hover:text-paper disabled:opacity-50"
+          >
+            {deleting ? "Deleting…" : "Delete event"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

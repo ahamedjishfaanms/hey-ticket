@@ -21,9 +21,10 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Only a confirmed (or still-valid waitlisted) ticket gets a real QR —
-  // pending/cancelled registrations shouldn't produce a scannable code.
-  if (registration.status !== "confirmed" && registration.status !== "waitlisted") {
+  // Only a confirmed ticket gets a real QR. Waitlisted, pending and
+  // cancelled registrations are all refused at the door, so handing them
+  // a scannable code only makes people think they're in.
+  if (registration.status !== "confirmed") {
     return NextResponse.json({ error: "No QR for this ticket" }, { status: 404 });
   }
 

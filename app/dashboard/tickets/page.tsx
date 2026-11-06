@@ -2,6 +2,7 @@ import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { sql } from "@/lib/db";
 import DashboardTabs from "@/components/DashboardTabs";
+import { formatInZone } from "@/lib/time";
 
 interface MyTicketRow {
   registration_id: string;
@@ -10,6 +11,7 @@ interface MyTicketRow {
   event_id: string;
   title: string;
   starts_at: string;
+  timezone: string;
   location: string | null;
   cover_image_url: string | null;
 }
@@ -22,7 +24,7 @@ export default async function MyTicketsPage() {
     ? ((await sql`
         select
           r.id as registration_id, r.status, r.checked_in_at,
-          e.id as event_id, e.title, e.starts_at, e.location, e.cover_image_url
+          e.id as event_id, e.title, e.starts_at, e.location, e.cover_image_url, e.timezone
         from registrations r
         join events e on e.id = r.event_id
         where r.email = ${email}
@@ -93,12 +95,13 @@ function TicketGroup({
             <div className="flex-1">
               <p className="font-display text-lg">{r.title}</p>
               <p className="text-sm text-ink/50">
-                {new Date(r.starts_at).toLocaleString("en-US", {
+                {formatInZone(r.starts_at, r.timezone, {
                   weekday: "short",
                   month: "short",
                   day: "numeric",
                   hour: "numeric",
                   minute: "2-digit",
+                  timeZoneName: "short",
                 })}
                 {r.location ? ` · ${r.location}` : ""}
               </p>

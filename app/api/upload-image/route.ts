@@ -3,6 +3,9 @@ import { auth } from "@clerk/nextjs/server";
 
 export const runtime = "nodejs";
 
+const MAX_BYTES = 4 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
 // Proxies image uploads to ImgBB so the API key never reaches the
 // browser. Accepts a multipart form with a single "image" field and
 // returns the hosted URL to store as an event's cover_image_url.
@@ -20,15 +23,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const incoming = await request.formData();
+  const incoming = await request.formData().catch(() => null);
+  if (!incoming) {
+    return NextResponse.json({ error: "No image provided" }, { status: 400 });
+  }
   const file = incoming.get("image");
 
   if (!file || !(file instanceof Blob)) {
     return NextResponse.json({ error: "No image provided" }, { status: 400 });
   }
 
-  if (file.size > 10 * 1024 * 1024) {
-    return NextResponse.json({ error: "Image must be under 10MB" }, { status: 400 });
+  // Vercel rejects request bodies over ~4.5MB before this code even runs,
+  // so the real ceiling is 4MB. The browser uploader shrinks bigger photos
+  // before sending; this is the backstop.
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json({ error: "Image must be under 4MB" }, { status: 400 });
+  }
+
+  // Check the type ourselves rather than relying on ImgBB's error (which
+  // came back as a confusing 502). SVG is excluded on purpose: it can
+  // carry script.
+  if (!ALLOWED_TYPES.has(file.type)) {
+    return NextResponse.json(
+      { error: "Use a PNG, JPG, WebP or GIF image" },
+      { status: 400 }
+    );
   }
 
   const outgoing = new FormData();
@@ -42,9 +61,16 @@ export async function POST(request: Request) {
   const data = await res.json().catch(() => null);
 
   if (!res.ok || !data?.data?.url) {
+    // A rejection of the file itself is the user's problem (400); anything
+    // else is the image host being down (502).
+    const isClientError = res.status >= 400 && res.status < 500;
     return NextResponse.json(
-      { error: data?.error?.message || "Upload failed, try again" },
-      { status: 502 }
+      {
+        error: isClientError
+          ? data?.error?.message || "That file couldn't be used as an image"
+          : "The image host is having trouble — try again in a minute",
+      },
+      { status: isClientError ? 400 : 502 }
     );
   }
 

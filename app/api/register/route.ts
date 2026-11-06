@@ -7,12 +7,23 @@ import {
   sendHostNewPendingEmail,
 } from "@/lib/email";
 import type { EventRow } from "@/lib/types";
+import { LIMITS, isEmail } from "@/lib/validation";
+import { eventEndsAt } from "@/lib/time";
 
 export async function POST(request: Request) {
-  const { eventId, fullName, email, customFieldResponses } = await request.json();
+  const body = await request.json().catch(() => null);
+  const { eventId, customFieldResponses } = body || {};
+  const fullName = typeof body?.fullName === "string" ? body.fullName.trim() : "";
+  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
 
   if (!eventId || !fullName || !email) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+  if (fullName.length > LIMITS.name) {
+    return NextResponse.json({ error: `Name must be ${LIMITS.name} characters or fewer` }, { status: 400 });
+  }
+  if (!isEmail(email)) {
+    return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 });
   }
 
   const [event] = (await sql`
@@ -24,18 +35,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  // Server-side guard to match the client-side check — a required
-  // question left blank shouldn't be possible to submit even if someone
-  // bypasses the form.
-  const responses: Record<string, unknown> =
+  if (eventEndsAt(event) < new Date()) {
+    return NextResponse.json({ error: "This event has already ended" }, { status: 400 });
+  }
+
+  // Only keep answers to questions this event actually asks, and check
+  // each one: required questions answered, multiple-choice answers one of
+  // the listed options, text within a sane length. A hand-made request
+  // shouldn't be able to slip past what the form enforces.
+  const raw: Record<string, unknown> =
     customFieldResponses && typeof customFieldResponses === "object" ? customFieldResponses : {};
+  const responses: Record<string, string | boolean> = {};
   for (const f of event.custom_fields || []) {
-    if (!f.required) continue;
-    const v = responses[f.id];
-    const missing = f.type === "checkbox" ? !v : v === undefined || v === null || v === "";
-    if (missing) {
-      return NextResponse.json({ error: `"${f.label}" is required` }, { status: 400 });
+    const v = raw[f.id];
+    if (f.type === "checkbox") {
+      if (f.required && v !== true) {
+        return NextResponse.json({ error: `"${f.label}" is required` }, { status: 400 });
+      }
+      if (v === true) responses[f.id] = true;
+      continue;
     }
+    const s = typeof v === "string" ? v.trim() : "";
+    if (!s) {
+      if (f.required) {
+        return NextResponse.json({ error: `"${f.label}" is required` }, { status: 400 });
+      }
+      continue;
+    }
+    if (f.type === "select" && !(f.options || []).includes(s)) {
+      return NextResponse.json({ error: `Pick one of the options for "${f.label}"` }, { status: 400 });
+    }
+    if (s.length > LIMITS.answer) {
+      return NextResponse.json({ error: `Answer to "${f.label}" is too long` }, { status: 400 });
+    }
+    responses[f.id] = s;
   }
 
   const [{ count: confirmedCount }] = (await sql`
@@ -54,7 +87,7 @@ export async function POST(request: Request) {
     [registration] = await sql`
       insert into registrations (event_id, full_name, email, status, ticket_code, custom_field_responses)
       values (
-        ${eventId}, ${fullName}, ${email.toLowerCase().trim()},
+        ${eventId}, ${fullName}, ${email},
         ${status}, ${generateTicketCode()}, ${JSON.stringify(responses)}
       )
       returning *
