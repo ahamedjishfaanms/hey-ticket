@@ -14,7 +14,7 @@ export async function POST(
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const { decision } = await request.json();
+  const { decision } = await request.json().catch(() => ({}));
   if (decision !== "approve" && decision !== "reject") {
     return NextResponse.json({ error: "decision must be approve or reject" }, { status: 400 });
   }
@@ -33,7 +33,9 @@ export async function POST(
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  if (registration.status !== "pending") {
+  // Pending requests can be approved or declined; waitlisted people can be
+  // promoted to confirmed (e.g. when someone drops out) or removed.
+  if (registration.status !== "pending" && registration.status !== "waitlisted") {
     return NextResponse.json(
       { error: "This request has already been reviewed" },
       { status: 409 }

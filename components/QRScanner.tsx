@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function QRScanner({
   onScan,
@@ -12,6 +12,7 @@ export default function QRScanner({
   const containerId = "qr-scanner-region";
   const scannerRef = useRef<any>(null);
   const lastScanRef = useRef<{ text: string; at: number }>({ text: "", at: 0 });
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!active) return;
@@ -44,8 +45,17 @@ export default function QRScanner({
             // ignore per-frame decode failures
           }
         );
+        if (!cancelled) setCameraError(null);
       } catch (err) {
         console.error("Could not start camera", err);
+        const name = (err as any)?.name || String(err);
+        setCameraError(
+          /NotAllowed|Permission/i.test(name)
+            ? "Camera access was blocked. Allow the camera for this site in your browser settings, then reload — or type the ticket code below."
+            : /NotFound|Overconstrained|no camera/i.test(name)
+            ? "No camera found on this device. Type the ticket code below instead."
+            : "Couldn't start the camera. Type the ticket code below, or reload to try again."
+        );
       }
     })();
 
@@ -60,8 +70,19 @@ export default function QRScanner({
   }, [active]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-ink/10 bg-ink">
+    <div className="relative overflow-hidden rounded-2xl border border-paper/10 bg-ink">
       <div id={containerId} className="aspect-square w-full" />
+      {cameraError && (
+        <div
+          role="alert"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center"
+        >
+          <p className="text-4xl" aria-hidden>
+            📷
+          </p>
+          <p className="text-sm text-paper/80">{cameraError}</p>
+        </div>
+      )}
     </div>
   );
 }

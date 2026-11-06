@@ -30,7 +30,7 @@ export default async function CertificatePage({ params }: { params: { id: string
 
   const eligible =
     event.certificate_mode === "participation"
-      ? registration.status === "confirmed" || registration.status === "waitlisted"
+      ? registration.status === "confirmed"
       : event.certificate_mode === "attendance"
       ? !!registration.checked_in_at
       : false;

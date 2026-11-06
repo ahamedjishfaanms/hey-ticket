@@ -20,7 +20,7 @@ export default async function AdminPage({
   const events = (await sql`
     select
       e.id, e.slug, e.title, e.description, e.cover_image_url, e.location,
-      e.is_online, e.meeting_url, e.starts_at, e.timezone, e.capacity,
+      e.is_online, e.meeting_url, e.starts_at, e.ends_at, e.timezone, e.capacity,
       e.is_published, e.moderation_status, e.moderation_note, e.moderated_at,
       e.created_at,
       p.full_name as organizer_name, p.email as organizer_email,

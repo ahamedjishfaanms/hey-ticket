@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { eventEndsAt } from "@/lib/time";
 
 export interface AdminReport {
   id: string;
@@ -20,6 +21,7 @@ export interface AdminEventRow {
   is_online: boolean;
   meeting_url: string | null;
   starts_at: string;
+  ends_at: string | null;
   timezone: string;
   capacity: number | null;
   is_published: boolean;
@@ -62,7 +64,10 @@ export default function AdminClient({
   const [openId, setOpenId] = useState<string | null>(null);
 
   const now = Date.now();
-  const isLive = (e: AdminEventRow) => e.is_published && e.moderation_status === "active";
+  // "Live" = public right now and not over yet. Past events that are still
+  // published used to be counted here too.
+  const isLive = (e: AdminEventRow) =>
+    e.is_published && e.moderation_status === "active" && eventEndsAt(e).getTime() >= now;
 
   const counts = {
     total: events.length,
@@ -268,7 +273,7 @@ function AdminEventCard({
             <Row label="Capacity">
               {e.confirmed_count} confirmed{e.capacity ? ` / ${e.capacity}` : ""}
             </Row>
-            <Row label="Created">{new Date(e.created_at).toLocaleString()}</Row>
+            <Row label="Created">{new Date(e.created_at).toLocaleString("en-US", { timeZone: e.timezone || "UTC" })}</Row>
             <Row label="Public link">
               <a
                 href={`/e/${e.slug}`}
@@ -302,7 +307,7 @@ function AdminEventCard({
                     <span className="font-semibold">{r.reason}</span>
                     <span className="text-ink/40">
                       {" "}
-                      · {new Date(r.created_at).toLocaleString()}
+                      · {new Date(r.created_at).toLocaleString("en-US", { timeZone: "UTC", timeZoneName: "short" })}
                       {r.reporter_email ? ` · ${r.reporter_email}` : ""}
                     </span>
                     {r.details && (

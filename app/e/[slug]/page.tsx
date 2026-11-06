@@ -6,6 +6,7 @@ import { sql } from "@/lib/db";
 import { getAdminUserId } from "@/lib/admin";
 import { getDict, type Lang } from "@/lib/eventPageI18n";
 import type { EventRow } from "@/lib/types";
+import { eventEndsAt } from "@/lib/time";
 import RegisterForm from "./RegisterForm";
 import {
   ContactOrganizer,
@@ -32,11 +33,7 @@ const getPublicEvent = cache(async (slug: string) => {
   return event ?? null;
 });
 
-function eventEnd(e: EventRow) {
-  return e.ends_at
-    ? new Date(e.ends_at)
-    : new Date(new Date(e.starts_at).getTime() + 3 * 60 * 60 * 1000);
-}
+const eventEnd = eventEndsAt;
 
 /* ---------------- Link preview (WhatsApp, iMessage, LinkedIn, X…) ---------------- */
 
@@ -261,15 +258,17 @@ export default async function PublicEventPage({
             <InfoRow icon={<TicketIcon />}>
               <p className="font-semibold">
                 {t.free}
-                <span
-                  className={`ms-2 text-sm font-semibold ${
-                    isFull || (spotsLeft != null && spotsLeft <= 10)
-                      ? "text-rose"
-                      : "text-ink/50 dark:text-paper/50"
-                  }`}
-                >
-                  · {availability}
-                </span>
+                {!ended && (
+                  <span
+                    className={`ms-2 text-sm font-semibold ${
+                      isFull || (spotsLeft != null && spotsLeft <= 10)
+                        ? "text-rose"
+                        : "text-ink/50 dark:text-paper/50"
+                    }`}
+                  >
+                    · {availability}
+                  </span>
+                )}
               </p>
             </InfoRow>
           </div>
@@ -532,7 +531,7 @@ export default async function PublicEventPage({
       </div>
 
       {/* ============ 2. STICKY MOBILE CTA ============ */}
-      {!adminPreview && (
+      {!adminPreview && !ended && (
         <StickyCta
           label={ctaLabel}
           priceLabel={ended ? t.eventEnded : t.free}

@@ -16,11 +16,11 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-paper text-ink">
-      <header className="flex items-center justify-between border-b border-ink/10 px-6 py-4 md:px-10">
+      <header className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-4 sm:px-6 md:px-10">
         <Link href="/dashboard" className="font-display text-lg font-semibold">
           Hey<span className="text-stub-500">Ticket</span>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {isAdmin && (
             <Link
               href="/admin"
@@ -29,13 +29,14 @@ export default async function DashboardLayout({
               Admin
             </Link>
           )}
-          <Link href="/dashboard/events/new" className="btn-primary text-sm">
-            New event
+          <Link href="/dashboard/events/new" className="btn-primary whitespace-nowrap text-sm">
+            <span className="sm:hidden">+ New</span>
+            <span className="hidden sm:inline">New event</span>
           </Link>
           <SignOutButton />
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-6 py-10 md:px-10">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 md:px-10">{children}</main>
     </div>
   );
 }
